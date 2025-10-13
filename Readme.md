@@ -1,5 +1,7 @@
 # Optimizing Multi-Turn Interactive Recommendation Agents via Generative Intrinsic Motivation
 
+**The code is being cleaned up and will be finalized before October 20.**
+
 ![alt text](pic/image.png)
 
 ## Usage
