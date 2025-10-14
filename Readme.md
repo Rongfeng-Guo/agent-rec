@@ -98,7 +98,7 @@ def adpo_loss(
     total_loss = dpo_losses + kl_coef * kl_reg
 
     return total_loss, dpo_chosen_rewards, dpo_rejected_rewards
-
+```
 
 A ready-to-run CDPO training script is provided in the LLaMA-Factory repository.
 
