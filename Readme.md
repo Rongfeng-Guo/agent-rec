@@ -31,15 +31,15 @@ All LLM (Large Language Model) calls in this repository are made using OpenAI-li
 
 ### **Running GIMO**
 
-To run the existing prompt-based Conversational Recommendation Agent (CRA) or an aligned CRA, you can set the relevant configuration in the `main.sh` file and execute it.
+To run the existing prompt-based Conversational Recommendation Agent (IRA) or an aligned IRA, you can set the relevant configuration in the `main.sh` file and execute it.
 
-Our CRA alignment process consists of four main stages:
+Our IRA alignment process consists of four main stages:
 1. **SFT (Stage 1)**: Supervised Fine-Tuning & Cold Start
-2. **ECPO (Stages 2-4)**: Generative Intrinsic Motivation based Optimization
+2. **GIMO (Stages 2-4)**: Generative Intrinsic Motivation based Optimization
 
 ### **Stages Overview:**
-- **SGPT (Stage 1)**: [Supervised Fine-Tuning & Cold Start](todo)
-- **ECPO Stages (2-4)**:
+- **SFT & Cold Start (Stage 1)**: [Supervised Fine-Tuning & Cold Start](todo)
+- **GIMO Stages (2-4)**:
   - [Generative Potential Estimation](todo)
   - [Hint-conditioned Action Proposal](todo)
   - [Conditional Direct Preference Optimization](todo)
@@ -49,9 +49,9 @@ Our CRA alignment process consists of four main stages:
 
 Test recommendation metric using simulator environment:
 ```
-# test the existing prompt-based CRA baseline
+# test the existing prompt-based IRA baseline
 bash main.sh
-# test the aligned CRA
+# test the trained IRA
 bash main_lora.sh
 ```
 
