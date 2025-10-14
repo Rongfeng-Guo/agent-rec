@@ -45,6 +45,69 @@ Our IRA alignment process consists of four main stages:
   - [Conditional Direct Preference Optimization](todo)
 
 
+
+#### ⚙️ Implementation Integration
+
+We have **seamlessly integrated** CDPO into the **LLaMA-Factory** training framework.  
+No additional setup is required.
+
+The core implementation can be found at:
+```
+LLaMA-Factory/src/llamafactory/train/dpo/train.py
+```
+The key implementation extends standard DPO loss with an action-level KL regularization term to achieve conditional alignment:
+
+```python
+def adpo_loss(
+    self,
+    chosen_logps: torch.FloatTensor,
+    rejected_logps: torch.FloatTensor,
+    ref_chosen_logps: torch.FloatTensor,
+    ref_rejected_logps: torch.FloatTensor,
+    action_policy_logps: torch.FloatTensor,     # [B, T, V]
+    action_reference_logps: torch.FloatTensor,  # [B, T, V]
+    action_mask: torch.BoolTensor,              # [B, T, 1]
+    kl_type: str = "l2",
+    kl_coef: float = 1.0,
+) -> Tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
+
+    # === Step 1: Standard DPO loss ===
+    dpo_losses, dpo_chosen_rewards, dpo_rejected_rewards = self.dpo_loss(
+        chosen_logps,
+        rejected_logps,
+        ref_chosen_logps,
+        ref_rejected_logps
+    )
+
+    # === Step 2: Action-level KL regularization (masked) ===
+    if kl_type == "l2":
+        diff = (action_policy_logps - action_reference_logps) ** 2
+    elif kl_type == "abs":
+        diff = torch.abs(action_policy_logps - action_reference_logps)
+    else:
+        raise ValueError(f"Unsupported kl_type: {kl_type}")
+
+    # Masked KL only on valid action regions
+    masked_diff = diff * action_mask  # [B, T, V]
+    vocab_size = diff.size(-1)
+    token_count = action_mask.sum(dim=(1, 2)).clamp(min=1)
+
+    kl_reg = masked_diff.sum(dim=(1, 2)) / (token_count * vocab_size)
+
+    # === Step 3: Weighted combination ===
+    total_loss = dpo_losses + kl_coef * kl_reg
+
+    return total_loss, dpo_chosen_rewards, dpo_rejected_rewards
+
+
+A ready-to-run CDPO training script is provided in the LLaMA-Factory repository.
+
+```
+cd LLaMA-Factory
+bash gimo/{dataset}/gimo/adpo_v1_sample1.sh
+```
+
+
 ### Evaluation
 
 Test recommendation metric using simulator environment:
