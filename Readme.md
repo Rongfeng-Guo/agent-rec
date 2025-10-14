@@ -29,7 +29,7 @@ All LLM (Large Language Model) calls in this repository are made using OpenAI-li
 3. For open-source models, use `vllm` for local deployment. We have provided an example script in the `model/` directory.
 
 
-### **Running GIMO**
+## **Running GIMO**
 
 To run the existing prompt-based Conversational Recommendation Agent (IRA) or an aligned IRA, you can set the relevant configuration in the `main.sh` file and execute it.
 
@@ -37,16 +37,25 @@ Our IRA alignment process consists of four main stages:
 1. **SFT (Stage 1)**: Supervised Fine-Tuning & Cold Start
 2. **GIMO (Stages 2-4)**: Generative Intrinsic Motivation based Optimization
 
-### **Stages Overview:**
-- **SFT & Cold Start (Stage 1)**: [Supervised Fine-Tuning & Cold Start](todo)
-- **GIMO Stages (2-4)**:
-  - [Generative Potential Estimation](todo)
-  - [Hint-conditioned Action Proposal](todo)
-  - [Conditional Direct Preference Optimization](todo)
+### SFT & Cold Start
+```
+cd LLaMA-Factory
+# Step 1: Configure the dataset path in data/dataset_info.json
+# Step 2: Run the SFT training script
+bash gimo/{dataset}/sft/sft.sh
+```
+
+### Generative Potential Estimation
+```
+# rollout use sft policy
+cd GPE_HAP
+python rewrite_v3.py --domain {dataset} 
+```
+
+### Hint-conditioned Action Proposal
 
 
-
-#### ⚙️ Implementation Integration
+### Conditional Direct Preference Optimization
 
 We have **seamlessly integrated** CDPO into the **LLaMA-Factory** training framework.  
 No additional setup is required.
@@ -104,8 +113,11 @@ A ready-to-run CDPO training script is provided in the LLaMA-Factory repository.
 
 ```
 cd LLaMA-Factory
+# Step 1: Configure the dataset path in data/dataset_info.json
+# Step 2: Run the CDPO training script
 bash gimo/{dataset}/gimo/adpo_v1_sample1.sh
 ```
+
 
 
 ### Evaluation
