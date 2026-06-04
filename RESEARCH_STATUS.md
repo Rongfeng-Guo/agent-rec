@@ -6,7 +6,7 @@
 
 ## Current HEAD
 
-`5d2dd1c7b4c91c57ee73f5dd8fbc99fc09d3c3d4`
+Run `git rev-parse HEAD` for the exact current commit after status-file edits.
 
 ## Completed Commits
 
@@ -15,6 +15,7 @@
 - `9207797` Add critique uplift preference pair builder
 - `2d0bf65` infra: add reproducible memory baseline runner
 - `5d2dd1c` docs: record research status and smoke results
+- `fa62d79` docs: update research status head
 
 ## Completed Modules
 
