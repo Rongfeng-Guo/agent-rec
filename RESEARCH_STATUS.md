@@ -6,168 +6,159 @@
 
 ## Current HEAD
 
-Run `git rev-parse HEAD` for the exact current commit after status-file edits.
+Run `git rev-parse HEAD` after the final status commit for the exact commit.
 
-## Completed Commits
-
-- `c1b59a8` Add drift-aware structured memory benchmark
-- `bfd6be6` Add scope-aware critique memory
-- `9207797` Add critique uplift preference pair builder
-- `2d0bf65` infra: add reproducible memory baseline runner
-- `5d2dd1c` docs: record research status and smoke results
-- `fa62d79` docs: update research status head
-
-## Completed Modules
+## COMPLETED
 
 - `StructuredMemory` for positive, negative, hard, and soft preference slots.
 - `CritiqueScopeMemory` with fast/slow memory, temporal scope, horizon decay,
   promotion conditions, session expiry, and behavioral rollback.
-- Compatibility import path: `user_simulator/state/critique_scope_memory.py`.
-- Deterministic CritiqueScope benchmark covering:
-  - Temporary Fatigue
-  - Stable Dislike
-  - Diversity Request
-  - Session Context
-  - Genuine Drift
-  - Behavioral Rollback
-- Noisy/ambiguous critique scenario set under
-  `user_simulator/evaluation/scenarios/noisy_critique_scenarios.jsonl`.
-- Scenario schema validator for deterministic, noisy, and external JSONL inputs.
-- Counterfactual uplift preference-pair builder.
-- Critique parser with deterministic and optional OpenAI-compatible backend.
-- Rollout adapter that normalizes follow/ignore/over-apply utilities and emits
-  uplift preference pairs.
-- Result aggregator that exports method/scenario summaries and LaTeX tables.
-- Unified baseline runner for `none`, `flat`, `structured`, `time_decay`, and
-  `critiquescope`.
-- CSV/JSON/JSONL/metadata result output.
-- Pytest regression suite for CritiqueScope.
-- CPU/API-free config and shell scripts.
-- Research docs:
-  - `docs/critiquescope_gimo.md`
+- Deterministic and noisy memory-level critique benchmarks.
+- Critique parser with deterministic and optional OpenAI-compatible backends.
+- Critique rollout adapter and counterfactual uplift preference-pair export.
+- Unified memory baseline runner with CSV/JSON/JSONL/metadata output.
+- Result aggregation and LaTeX export for memory-level diagnostics.
+- `CritiqueWorld` controlled closed-loop world model:
+  - latent user state
+  - transparent utility decomposition
+  - fatigue, context, drift, patience, and leave behavior
+  - deterministic user response with explicit seeds
+- Memory-aware reranking policy for:
+  - `none`
+  - `flat`
+  - `structured`
+  - `time_decay`
+  - `critiquescope`
+- Closed-loop scenario factories:
+  - `temporary_fatigue`
+  - `stable_dislike`
+  - `diversity_request`
+  - `session_context`
+  - `genuine_drift`
+  - `behavioral_rollback`
+  - `mixed_multi_turn`
+- Closed-loop benchmark runner with:
+  - `trajectories.jsonl`
+  - `branch_rollouts.jsonl`
+  - `dpo_pairs.jsonl`
+  - `summary.csv`
+  - `summary.json`
+  - `method_summary.csv`
+  - `method_scenario_summary.csv`
+  - `run_metadata.json`
+  - `tables.tex`
+  - per-run `README.md`
+- Counterfactual branch rollout from the same critique snapshot:
+  - `follow`
+  - `ignore`
+  - `over_apply`
+- Oracle and deterministic parser modes for closed-loop evaluation.
+- Minimal error attribution:
+  - `parser_scope_error`
+  - `memory_update_error`
+  - `policy_application_error`
+  - `candidate_coverage_error`
+- Pytest regression coverage for CritiqueScope and CritiqueWorld.
+- Documentation:
   - `docs/driftaware_gimo.md`
+  - `docs/critiquescope_gimo.md`
+  - `docs/critique_world.md`
   - `docs/experiment_protocol.md`
   - `docs/baseline_matrix.md`
 
-## Commands Run
+## SMOKE_TEST_ONLY
+
+These runs are controlled diagnostics, not full GIMO training, not human
+evaluation, and not complete causal inference.
+
+| Run | Status | Rows / Pairs | Output |
+| --- | --- | ---: | --- |
+| Memory baseline deterministic | SMOKE_TEST_ONLY | 150 rows | `outputs/memory_baselines` |
+| Memory baseline noisy | SMOKE_TEST_ONLY | 75 rows | `outputs/memory_baselines_noisy` |
+| CritiqueWorld oracle | SMOKE_TEST_ONLY | 175 summary rows; 1740 trajectory rows; 2850 branch rows; 355 DPO/CDPO pairs | `outputs/closed_loop_oracle` |
+| CritiqueWorld deterministic parser | SMOKE_TEST_ONLY | 105 summary rows; 1044 trajectory rows; 1710 branch rows; 249 DPO/CDPO pairs | `outputs/closed_loop_deterministic` |
+
+## Actual Closed-Loop Result Snapshot
+
+Oracle parser method-level means:
+
+| Method | N | CumulativeUtility | ClickRate | InstructionUplift@H | OverCorrectionRegret@H | ScopeAccuracy |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| critiquescope | 35 | 11.003 | 0.710 | -0.076 | 0.099 | 1.000 |
+| flat | 35 | 10.850 | 0.711 | -0.164 | 0.000 | 1.000 |
+| none | 35 | 11.088 | 0.710 | 0.000 | 0.000 | 1.000 |
+| structured | 35 | 11.020 | 0.703 | 0.009 | 0.125 | 1.000 |
+| time_decay | 35 | 11.075 | 0.719 | 0.009 | 0.000 | 1.000 |
+
+Deterministic parser method-level means:
+
+| Method | N | CumulativeUtility | ClickRate | InstructionUplift@H | OverCorrectionRegret@H | ParserScopeError |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| critiquescope | 21 | 11.087 | 0.707 | -0.004 | 0.061 | 0.117 |
+| flat | 21 | 10.980 | 0.723 | -0.064 | 0.000 | 0.119 |
+| none | 21 | 11.087 | 0.707 | 0.000 | 0.000 | 0.117 |
+| structured | 21 | 11.072 | 0.715 | 0.029 | 0.094 | 0.122 |
+| time_decay | 21 | 11.095 | 0.719 | 0.022 | 0.000 | 0.116 |
+
+Interpretation: these numbers are regression-test diagnostics for a controlled
+latent-state environment. They should be used to identify failure modes and
+branch-level preference-pair quality, not to claim real-world recommendation
+effectiveness.
+
+## NOT_RUN
+
+- Full prompt-based IRA evaluation on original GIMO task files.
+- Full SFT training.
+- Full GPE/HAP pipeline.
+- Full CDPO training.
+- Real AILO simulator rollout connected to CritiqueWorld branch schema.
+- Human evaluation.
+- Full Recall/NDCG table for trained policies.
+
+## BLOCKED_NO_GPU
+
+- SFT and CDPO training require GPU resources and model weights.
+- LLaMA-Factory training tests require the full training dependency stack.
+
+## BLOCKED_NO_API_KEY
+
+- OpenAI-compatible critique parser mode is intentionally not run in this
+  branch because no API endpoint/key is configured.
+- GPE/HAP scripts require an OpenAI-compatible endpoint and rollout inputs.
+
+## BLOCKED_MISSING_DATA
+
+- Original prompt-based IRA path references scripts/configuration that are not
+  fully present in this checkout.
+- Prebuilt embedding index, configured dataset paths, and model/data artifacts
+  are needed for full GIMO evaluation and training.
+
+## Commands Run In This Round
 
 | Command | Status | Notes |
 | --- | --- | --- |
 | `git status --short` | PASS | Initial worktree was clean. |
 | `git branch --show-current` | PASS | Branch: `codex/driftaware-structured-memory`. |
-| `git log --oneline --decorate -n 12` | PASS | Verified branch history. |
-| `python --version` | PASS | Python 3.12.3. |
-| `nvidia-smi` | PASS | RTX 4050 visible; not needed for Tier A. |
-| `python -B -m user_simulator.evaluation.drift_memory_eval` | PASS | Deterministic DriftAware smoke result printed. |
-| `python -B -m user_simulator.evaluation.critique_scope_eval` | PASS | Six deterministic critique scenarios evaluated. |
-| `python -B -m user_simulator.evaluation.critique_scope_eval --scenario-set noisy --output outputs\critique_scope_noisy\results.json` | PASS | Five noisy scenarios evaluated and saved. |
-| `python -B -m user_simulator.evaluation.validate_critique_scenarios --scenario-set deterministic --output outputs\scenario_validation\deterministic.json` | PASS | Six deterministic scenarios validated. |
-| `python -B -m user_simulator.evaluation.validate_critique_scenarios --scenario-set noisy --output outputs\scenario_validation\noisy.json` | PASS | Five noisy scenarios validated. |
-| `python -B -m user_simulator.evaluation.critique_parser --backend deterministic --output outputs\parser_smoke\parsed.jsonl` | PASS | Five feedback utterances parsed with deterministic fallback. |
-| `python -B -m user_simulator.evaluation.critique_rollout_adapter --output-dir outputs\rollout_adapter_smoke` | PASS | Six scenarios normalized and 12 uplift pairs written. |
-| `python -B -m user_simulator.evaluation.run_memory_baselines --modes none flat structured time_decay critiquescope --scenario-set deterministic --seeds 0 1 2 3 4 --output-dir outputs\memory_baselines` | PASS | 150 rows written. |
-| `python -B -m user_simulator.evaluation.summarize_memory_baselines --input outputs\memory_baselines\summary.csv --output-dir outputs\memory_baselines\aggregate` | PASS | Five method summaries, method-scenario summaries, and LaTeX table written. |
-| `python -B -m user_simulator.evaluation.run_memory_baselines --modes none flat structured time_decay critiquescope --scenario-set noisy --seeds 0 1 2 --output-dir outputs\memory_baselines_noisy` | PASS | 75 noisy-scenario rows written. |
-| `python -B -m user_simulator.evaluation.summarize_memory_baselines --input outputs\memory_baselines_noisy\summary.csv --output-dir outputs\memory_baselines_noisy\aggregate` | PASS | Noisy method summaries and LaTeX table written. |
-| `pytest -q` | FAIL then PASS | First failed by collecting LLaMA-Factory tests without `transformers`, `accelerate`, and `datasets`; added `pytest.ini`, then 15 tests passed. |
-| `python -m compileall user_simulator` | PASS | Bytecode side effects cleaned/restored. |
-| `git diff --check` | PASS | No whitespace errors. |
-
-## Actual Results Summary
-
-Result files:
-
-```text
-outputs/memory_baselines/
-  README.md
-  run_metadata.json
-  runs.jsonl
-  summary.csv
-  summary.json
-  aggregate/
-    method_summary.csv
-    method_summary.json
-    method_scenario_summary.csv
-    method_scenario_summary.json
-    method_summary.tex
-outputs/parser_smoke/
-  parsed.jsonl
-outputs/rollout_adapter_smoke/
-  adapter_metadata.json
-  critique_pairs.jsonl
-  normalized_scenarios.jsonl
-outputs/memory_baselines_noisy/
-  README.md
-  run_metadata.json
-  runs.jsonl
-  summary.csv
-  summary.json
-  aggregate/
-outputs/scenario_validation/
-  deterministic.json
-  noisy.json
-outputs/critique_scope_noisy/
-  results.json
-```
-
-Run metadata:
-
-- Git commit: `2d0bf654b4f4af607e1635b72a5cb73012d1f74a`
-- Run mode: `SMOKE_TEST_ONLY`
-- Dataset: `deterministic_critique_scenarios`
-- Model: `none`
-- Seeds: `0 1 2 3 4`
-- Rows: `150`
-- API key: `UNSET`
-
-Representative deterministic findings:
-
-- Temporary UFC fatigue:
-  - `flat`: memory contamination `1.0`, over-correction regret `0.9`
-  - `critiquescope`: memory contamination `0.0`, over-correction regret `0.0`
-- Diversity request:
-  - `flat`: memory contamination `1.0`
-  - `critiquescope`: memory contamination `0.0`
-- Behavioral rollback:
-  - `flat`: rollback accuracy `0.0`, over-correction regret `0.9`
-  - `critiquescope`: rollback accuracy `1.0`, over-correction regret `0.0`
-
-These are controlled deterministic smoke-test values, not full GIMO or human
-evaluation results.
-
-## Not Yet Run
-
-| Experiment | Status | Reason |
-| --- | --- | --- |
-| Prompt-based IRA | BLOCKED | README references `main.sh`, but this checkout does not contain it; API/config files are absent. |
-| SFT | BLOCKED | Needs model weights, configured dataset paths, dependencies, and GPU training time. |
-| GPE/HAP | BLOCKED | Needs OpenAI-compatible model endpoint and rollout/config inputs. |
-| CDPO | BLOCKED | Needs model weights, preference data, LLaMA-Factory dependencies, and GPU. |
-| Real AILO simulator rollout with CritiqueScope | PENDING | Parser and rollout adapter exist; still needs real recommender outputs. |
-
-## Blockers
-
-- `NO_API_KEY`: no closed-source LLM evaluation configured.
-- `MISSING_DATA`: prebuilt embedding index and model/data config are not present.
-- `MISSING_DEPS`: full LLaMA-Factory test/training stack lacks `transformers`,
-  `accelerate`, `datasets`, and related dependencies.
-- `NEEDS_REVIEW`: deterministic utility values are designed for diagnosis and
-  should be reviewed before being used in paper tables.
+| `git log --oneline --decorate -n 15` | PASS | Verified current history. |
+| `pytest -q tests/test_critique_world.py` | PASS | 12 CritiqueWorld tests passed. |
+| `pytest -q` | PASS | 27 tests passed. |
+| `python -B -m user_simulator.evaluation.run_closed_loop_benchmark --modes none flat structured time_decay critiquescope --scenarios all --seeds 0 1 2 3 4 --max-turns 12 --top-k 5 --parser-mode oracle --output-dir outputs\closed_loop_oracle` | PASS | 175 summary rows, 1740 trajectory rows, 2850 branch rows, 355 pairs. |
+| `python -B -m user_simulator.evaluation.run_closed_loop_benchmark --modes none flat structured time_decay critiquescope --scenarios all --seeds 0 1 2 --max-turns 12 --top-k 5 --parser-mode deterministic --output-dir outputs\closed_loop_deterministic` | PASS | 105 summary rows, 1044 trajectory rows, 1710 branch rows, 249 pairs. |
+| `python -m compileall user_simulator` | PASS | Bytecode side effects cleaned from the worktree. |
+| `git diff --check` | PASS | Only Windows CRLF conversion warnings were reported. |
 
 ## Next Priorities
 
-1. Connect the optional OpenAI-compatible parser to a configured model endpoint.
-2. Add a real GIMO rollout collector that records follow/ignore/over-apply branches.
-3. Feed real rollout JSONL into `critique_rollout_adapter.py`.
-4. Add a small prompt-based IRA smoke runner once `main.sh` or equivalent entry is restored.
-5. Add aggregate tables and LaTeX export for deterministic results.
-6. Add noisy/ambiguous critique scenarios.
-7. Add cross-simulator robustness evaluation.
-8. Run full GIMO baselines after model/data/API configuration is available.
+1. Connect real GIMO rollout logs to the CritiqueWorld branch schema.
+2. Convert exported `dpo_pairs.jsonl` into the exact LLaMA-Factory/GIMO CDPO
+   data format.
+3. Add scenario coverage for noisy closed-loop ambiguity.
+4. Run `openai_compatible` parser mode once API configuration is available.
+5. Run full SFT/GPE/HAP/CDPO after GPU, model, and data paths are configured.
 
 ## Recommended Push Commands
 
-Do not push automatically from this status file. When ready:
+Do not push automatically from this run. When ready:
 
 ```bash
 git push -u origin codex/driftaware-structured-memory

@@ -211,6 +211,47 @@ Over-Correction Regret, Memory Contamination Rate, and Token Cost. See
 [`docs/critiquescope_gimo.md`](docs/critiquescope_gimo.md) for the schema and
 experimental protocol.
 
+### CritiqueWorld: Closed-Loop Scope-Aware Recommendation Testbed
+
+The latest extension adds `CritiqueWorld`, a CPU-only, API-free closed-loop
+testbed for evaluating whether critique memory actually changes recommendation
+slates over time. Unlike the earlier memory-level diagnostics, CritiqueWorld
+generates a slate each turn, simulates user behavior from a transparent latent
+state, applies memory updates, reranks future items, and exports controlled
+counterfactual branch rollouts.
+
+Run the oracle closed-loop benchmark:
+
+```
+python -B -m user_simulator.evaluation.run_closed_loop_benchmark \
+  --modes none flat structured time_decay critiquescope \
+  --scenarios all \
+  --seeds 0 1 2 3 4 \
+  --max-turns 12 \
+  --top-k 5 \
+  --parser-mode oracle \
+  --output-dir outputs/closed_loop_oracle
+```
+
+Run the deterministic-parser variant:
+
+```
+python -B -m user_simulator.evaluation.run_closed_loop_benchmark \
+  --modes none flat structured time_decay critiquescope \
+  --scenarios all \
+  --seeds 0 1 2 \
+  --max-turns 12 \
+  --top-k 5 \
+  --parser-mode deterministic \
+  --output-dir outputs/closed_loop_deterministic
+```
+
+Outputs include trajectory JSONL, branch rollout JSONL, DPO/CDPO-style
+preference pairs, summary CSV/JSON, method-level aggregates, and a LaTeX table.
+The branch metrics should be described as a controlled counterfactual rollout
+proxy, not as complete causal inference. See
+[`docs/critique_world.md`](docs/critique_world.md).
+
 
 ## References
 1. Our evaluation method is based on [XueyangFeng/ECPO](https://github.com/XueyangFeng/ECPO).

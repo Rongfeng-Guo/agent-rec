@@ -13,6 +13,12 @@ Tier A uses deterministic critique scenarios in
 `user_simulator/evaluation/critique_scope_eval.py`. These scenarios require no
 API key, GPU, or external data.
 
+Tier A+ uses CritiqueWorld closed-loop scenarios in
+`user_simulator/scenarios/closed_loop_scenarios.py`. These scenarios still
+require no API key, GPU, or external data, but they evaluate slate generation,
+user response, memory update, reranking, branch rollouts, and long-horizon
+utility.
+
 Tier B/C should reuse GIMO AILO task files under `user_simulator/task/` and the
 original LLaMA-Factory scripts once model/data configuration is available.
 
@@ -38,6 +44,18 @@ original LLaMA-Factory scripts once model/data configuration is available.
 - Instruction Uplift.
 - Over-Application Regret.
 - Token Cost.
+- CumulativeUtility.
+- AverageSlateUtility.
+- ClickRate.
+- LeaveRate.
+- AverageSessionLength.
+- SlateDiversity.
+- CategoryCoverage.
+- InstructionUplift@1 and InstructionUplift@H.
+- OverCorrectionRegret@1 and OverCorrectionRegret@H.
+- ScopeClassificationAccuracy.
+- Parser, memory-update, policy-application, and candidate-coverage error
+  attribution.
 
 `instruction_uplift` and `over_application_regret` are controlled
 counterfactual rollout proxies, not full causal estimates.
@@ -81,6 +99,23 @@ python -B -m user_simulator.evaluation.summarize_memory_baselines \
   --input outputs/memory_baselines_noisy/summary.csv \
   --output-dir outputs/memory_baselines_noisy/aggregate
 pytest -q tests/test_critique_scope.py
+pytest -q tests/test_critique_world.py
+python -B -m user_simulator.evaluation.run_closed_loop_benchmark \
+  --modes none flat structured time_decay critiquescope \
+  --scenarios all \
+  --seeds 0 1 2 3 4 \
+  --max-turns 12 \
+  --top-k 5 \
+  --parser-mode oracle \
+  --output-dir outputs/closed_loop_oracle
+python -B -m user_simulator.evaluation.run_closed_loop_benchmark \
+  --modes none flat structured time_decay critiquescope \
+  --scenarios all \
+  --seeds 0 1 2 \
+  --max-turns 12 \
+  --top-k 5 \
+  --parser-mode deterministic \
+  --output-dir outputs/closed_loop_deterministic
 ```
 
 ## Full Run
@@ -162,6 +197,18 @@ outputs/rollout_adapter_smoke/
 outputs/scenario_validation/
   deterministic.json
   noisy.json
+outputs/closed_loop_oracle/
+  trajectories.jsonl
+  branch_rollouts.jsonl
+  dpo_pairs.jsonl
+  summary.csv
+  summary.json
+  method_summary.csv
+  method_scenario_summary.csv
+  run_metadata.json
+  tables.tex
+outputs/closed_loop_deterministic/
+  same schema as closed_loop_oracle
 ```
 
 ## Reproducibility

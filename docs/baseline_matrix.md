@@ -10,6 +10,9 @@
 | DriftAware structured memory | Yes | No | No | No | SMOKE_TEST_ONLY | `python -B -m user_simulator.evaluation.drift_memory_eval` | Deterministic toy benchmark; not a full GIMO rollout. |
 | CritiqueScope memory | Yes | No | No | No | SMOKE_TEST_ONLY | `python -B -m user_simulator.evaluation.critique_scope_eval` | Deterministic controlled counterfactual proxy; not a full user simulator rollout. |
 | Unified memory baselines | Yes | No | No | No | SMOKE_TEST_ONLY | `python -B -m user_simulator.evaluation.run_memory_baselines --modes none flat structured time_decay critiquescope --scenario-set deterministic --seeds 0 1 2 3 4 --output-dir outputs/memory_baselines` | Deterministic benchmark only. |
+| CritiqueWorld closed-loop oracle | Yes | No | No | No | SMOKE_TEST_ONLY | `python -B -m user_simulator.evaluation.run_closed_loop_benchmark --modes none flat structured time_decay critiquescope --scenarios all --seeds 0 1 2 3 4 --max-turns 12 --top-k 5 --parser-mode oracle --output-dir outputs/closed_loop_oracle` | Controlled latent-state testbed, not human evaluation. |
+| CritiqueWorld deterministic parser | Yes | No | No | No | SMOKE_TEST_ONLY | `python -B -m user_simulator.evaluation.run_closed_loop_benchmark --modes none flat structured time_decay critiquescope --scenarios all --seeds 0 1 2 --max-turns 12 --top-k 5 --parser-mode deterministic --output-dir outputs/closed_loop_deterministic` | Uses cue-based parser; parser errors are attributed separately. |
+| CritiqueWorld OpenAI-compatible parser | Config only | No | Yes | No | BLOCKED_NO_API_KEY | `python -B -m user_simulator.evaluation.run_closed_loop_benchmark --parser-mode openai_compatible ...` | Optional external parser backend requires API configuration. |
 
 ## Notes
 
