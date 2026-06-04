@@ -96,6 +96,15 @@ The default benchmark includes:
 2. Persistent political-content filtering.
 3. A diversity request that should not become a negative preference.
 
+To build CDPO/DPO-style preference pairs from the same counterfactual branches:
+
+```bash
+python -B -m user_simulator.evaluation.critique_uplift_pairs --output critique_pairs.jsonl
+```
+
+Each pair prefers the follow branch over either the ignore branch or the
+over-apply branch when the counterfactual uplift is positive.
+
 ## GIMO integration
 
 The simulator now supports:

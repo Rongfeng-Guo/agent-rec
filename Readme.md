@@ -200,6 +200,12 @@ Run the diagnostic benchmark:
 python -B -m user_simulator.evaluation.critique_scope_eval
 ```
 
+Build counterfactual preference pairs for CDPO/DPO-style alignment:
+
+```
+python -B -m user_simulator.evaluation.critique_uplift_pairs --output critique_pairs.jsonl
+```
+
 The benchmark reports Instruction Uplift, Over-Application Regret,
 Over-Correction Regret, Memory Contamination Rate, and Token Cost. See
 [`docs/critiquescope_gimo.md`](docs/critiquescope_gimo.md) for the schema and

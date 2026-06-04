@@ -64,7 +64,7 @@ DEFAULT_SCENARIOS = [
         "ignore_value": [0.3, 0.25, 0.2],
         "over_apply_value": [0.82, 0.83, 0.85],
         "post_expiry_items": [
-            {"target": "political debate", "true_relevance": 0.1},
+            {"target": "political debate", "true_relevance": 0.0},
             {"target": "travel vlog", "true_relevance": 0.7},
         ],
     },
