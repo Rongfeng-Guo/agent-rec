@@ -39,25 +39,85 @@ def _target_matches(item: Item, target: str, object_scope: str = "category") -> 
     return False
 
 
-def _apply_intervention(score: float, item: Item, intervention: dict) -> tuple[float, bool]:
+def _diversify_adjustment(
+    score: float,
+    item: Item,
+    user_state: LatentUserState,
+    intervention: dict,
+) -> tuple[float, bool, dict]:
+    exposure = user_state.category_exposure_counts.get(item.category, 0)
+    recent_penalty_weight = float(intervention.get("penalty", 0.35))
+    novelty_weight = float(intervention.get("bonus", 0.75))
+    recent_exposure_penalty = recent_penalty_weight * max(0, exposure - 1)
+    diversity_bonus = 0.0
+
+    if exposure == 0:
+        diversity_bonus += novelty_weight
+    elif exposure == 1:
+        diversity_bonus += novelty_weight * 0.35
+
+    if item.novelty_group and not user_state.exposure_counts.get(item.novelty_group, 0):
+        diversity_bonus += novelty_weight * 0.5
+
+    intervention_score_delta = diversity_bonus - recent_exposure_penalty
+    adjusted = score + intervention_score_delta
+    return adjusted, True, {
+        "diversity_bonus": diversity_bonus,
+        "recent_exposure_penalty": recent_exposure_penalty,
+        "intervention_score_delta": intervention_score_delta,
+    }
+
+
+def _apply_intervention(
+    score: float,
+    item: Item,
+    user_state: LatentUserState,
+    intervention: dict,
+) -> tuple[float, bool, dict]:
     operation = intervention.get("operation")
     target = intervention.get("target", "")
     object_scope = intervention.get("object_scope", "category")
-    if not _target_matches(item, target, object_scope):
-        if operation == "diversify":
-            return score + float(intervention.get("bonus", 0.0)), True
-        return score, False
-    if operation == "filter":
-        return score - float(intervention.get("penalty", 100.0)), True
-    if operation == "attenuate":
-        return score - float(intervention.get("penalty", 1.6)), True
-    if operation == "rollback":
-        return score - float(intervention.get("penalty", 1.0)), True
-    if operation == "promote":
-        return score + float(intervention.get("bonus", 1.2)), True
     if operation == "diversify":
-        return score - float(intervention.get("penalty", 0.3)), True
-    return score, False
+        return _diversify_adjustment(score, item, user_state, intervention)
+    if not _target_matches(item, target, object_scope):
+        return score, False, {
+            "diversity_bonus": 0.0,
+            "recent_exposure_penalty": 0.0,
+            "intervention_score_delta": 0.0,
+        }
+    if operation == "filter":
+        penalty = float(intervention.get("penalty", 100.0))
+        return score - penalty, True, {
+            "diversity_bonus": 0.0,
+            "recent_exposure_penalty": 0.0,
+            "intervention_score_delta": -penalty,
+        }
+    if operation == "attenuate":
+        penalty = float(intervention.get("penalty", 1.6))
+        return score - penalty, True, {
+            "diversity_bonus": 0.0,
+            "recent_exposure_penalty": 0.0,
+            "intervention_score_delta": -penalty,
+        }
+    if operation == "rollback":
+        penalty = float(intervention.get("penalty", 1.0))
+        return score - penalty, True, {
+            "diversity_bonus": 0.0,
+            "recent_exposure_penalty": 0.0,
+            "intervention_score_delta": -penalty,
+        }
+    if operation == "promote":
+        bonus = float(intervention.get("bonus", 1.2))
+        return score + bonus, True, {
+            "diversity_bonus": 0.0,
+            "recent_exposure_penalty": 0.0,
+            "intervention_score_delta": bonus,
+        }
+    return score, False, {
+        "diversity_bonus": 0.0,
+        "recent_exposure_penalty": 0.0,
+        "intervention_score_delta": 0.0,
+    }
 
 
 def _flat_interventions(memory: list[dict]) -> List[dict]:
@@ -175,15 +235,31 @@ def rank_items(
     scored = []
     for item in items:
         breakdown = score_item_utility(item, user_state, config).to_dict()
-        score = breakdown["total"]
+        base_score = breakdown["total"]
+        score = base_score
+        breakdown["base_score"] = base_score
+        breakdown["diversity_bonus"] = 0.0
+        breakdown["recent_exposure_penalty"] = 0.0
+        breakdown["intervention_score_delta"] = 0.0
         item_interventions = []
         for intervention in interventions:
-            score, applied = _apply_intervention(score, item, intervention)
+            score, applied, delta_fields = _apply_intervention(score, item, user_state, intervention)
+            breakdown["diversity_bonus"] += float(delta_fields["diversity_bonus"])
+            breakdown["recent_exposure_penalty"] += float(delta_fields["recent_exposure_penalty"])
+            breakdown["intervention_score_delta"] += float(delta_fields["intervention_score_delta"])
             if applied:
-                item_interventions.append({"item_id": item.item_id, **intervention})
+                item_interventions.append({"item_id": item.item_id, **intervention, **delta_fields})
+        breakdown["final_score"] = score
         scored.append((item, score, breakdown, item_interventions))
 
+    base_ranks = {
+        item.item_id: index + 1
+        for index, (item, _, _, _) in enumerate(sorted(scored, key=lambda row: (-row[2]["base_score"], row[0].item_id)))
+    }
     scored.sort(key=lambda row: (-row[1], row[0].item_id))
+    for index, (item, _, breakdown, _) in enumerate(scored, start=1):
+        breakdown["rank_before"] = base_ranks[item.item_id]
+        breakdown["rank_after"] = index
     selected = scored[:top_k]
     return RankedSlate(
         slate=[row[0] for row in selected],

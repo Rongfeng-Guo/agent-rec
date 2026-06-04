@@ -188,6 +188,7 @@ def simulate_user_response(
     best_item, best_utility = max(scored, key=lambda pair: pair[1])
     avg_utility = sum(value for _, value in scored) / max(1, len(scored))
 
+    shown_categories = {item.category for item in slate}
     for item in slate:
         user_state.exposure_counts[item.item_id] = user_state.exposure_counts.get(item.item_id, 0) + 1
         if item.novelty_group:
@@ -195,6 +196,13 @@ def simulate_user_response(
         user_state.category_exposure_counts[item.category] = (
             user_state.category_exposure_counts.get(item.category, 0) + 1
         )
+    for category in list(user_state.category_exposure_counts):
+        if category not in shown_categories:
+            cooled = max(0, user_state.category_exposure_counts[category] - 1)
+            if cooled == 0:
+                user_state.category_exposure_counts.pop(category, None)
+            else:
+                user_state.category_exposure_counts[category] = cooled
 
     if avg_utility < config.low_slate_threshold:
         user_state.patience = max(0.0, user_state.patience - config.patience_decay)
