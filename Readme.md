@@ -1,146 +1,102 @@
-# Optimizing Multi-Turn Interactive Recommendation Agents via Generative Intrinsic Motivation (WWW26)
+# GIMO-MemoryLab
 
-![alt text](pic/image.png)
+![Repository overview](pic/image.png)
 
-## Usage
-### Getting Start
-You can use following scripts to install related python package through pip:
-```
-git clone https://github.com/XueyangFeng/GIMO.git
-cd GIMO
+This repository is our maintained research and engineering branch built on top
+of the original GIMO codebase. The focus here is not to mirror the public
+paper release page, but to extend the system with reproducible memory-aware
+recommendation experiments, controlled critique handling, and closed-loop
+evaluation artifacts that we can continue to evolve.
+
+## What This Repository Contains
+
+The current codebase combines the original multi-turn recommendation pipeline
+with our own extensions for memory behavior analysis:
+
+- `DriftAware-GIMO`: structured memory for positive, negative, hard, and soft
+  preference tracking under interest drift.
+- `CritiqueScope-GIMO`: fast/slow critique memory that distinguishes temporary
+  feedback from durable user constraints.
+- `CritiqueWorld`: a CPU-only, API-free closed-loop testbed for checking
+  whether critique memory actually changes future recommendation slates.
+- CDPO bridge tooling: controlled preference-pair export, validation, manifest
+  generation, train/dev split materialization, and readable audit reports.
+
+If you want the current state of the project at a glance, start with
+[`RESEARCH_STATUS.md`](RESEARCH_STATUS.md).
+
+## Quick Start
+
+Clone this repository and install the Python dependencies:
+
+```bash
+git clone https://github.com/Rongfeng-Guo/agent-rec.git
+cd agent-rec
 pip install -r requirements.txt
 ```
 
+## Local Data and API Setup
 
-### **AILO Environment Setup**
+### AILO environment assets
 
-Following ECPO, We provide a detailed pipeline for the AILO environment, including additional [README files](./user_simulator/readme.md). For a quick setup, follow these steps:
+The AILO simulator path still expects the embedding index assets referenced by
+the original project structure.
 
 1. Download the [index file](https://drive.google.com/file/d/1P6QkUrikHnwxNov0fUY3SxWQkl1qve0O/view?usp=drive_link).
-2. Unzip the downloaded file into the `user_simulator/embedding/` folder.
+2. Unzip the downloaded file into `user_simulator/embedding/`.
 
-### **API Configuration**
-All LLM (Large Language Model) calls in this repository are made using OpenAI-like interfaces. To configure the APIs:
+Additional simulator notes live in [`user_simulator/readme.md`](user_simulator/readme.md).
 
-1. Set your API information in the `config/api_config.json` file.
-2. For closed-source models, set the information directly in the config.
-3. For open-source models, use `vllm` for local deployment. We have provided an example script in the `model/` directory.
+### API configuration
 
+Any path in this repository that calls an LLM uses an OpenAI-compatible API
+interface.
 
-## **Running GIMO**
+1. Put your endpoint and key in `config/api_config.json`.
+2. Closed-source models can be configured directly through that file.
+3. Open-source models can be exposed through a local OpenAI-compatible server
+   such as `vllm`.
 
-To run the existing prompt-based Conversational Recommendation Agent (IRA) or an aligned IRA, you can set the relevant configuration in the `main.sh` file and execute it.
+The new CritiqueWorld evaluation path does not require an API key.
 
-Our IRA alignment process consists of four main stages:
-1. **SFT (Stage 1)**: Supervised Fine-Tuning & Cold Start
-2. **GIMO (Stages 2-4)**: Generative Intrinsic Motivation based Optimization
+## Main Workstreams
 
-### SFT & Cold Start
-```
+### 1. Baseline GIMO training path
+
+The original training stack is still present for users who want to continue the
+SFT, GPE, HAP, and CDPO workflow after configuring datasets, model weights, and
+GPU resources.
+
+SFT:
+
+```bash
 cd LLaMA-Factory
-# Step 1: Configure the dataset path in data/dataset_info.json
-# Step 2: Run the SFT training script
 bash gimo/{dataset}/sft/sft.sh
 ```
 
-### Generative Potential Estimation
-```
-# rollout use sft policy
+GPE rollout:
+
+```bash
 cd GPE_HAP
-python rewrite_v3.py --domain {dataset} 
+python rewrite_v3.py --domain {dataset}
 ```
 
-### Hint-conditioned Action Proposal
+CDPO training:
 
-
-### Conditional Direct Preference Optimization
-
-We have **seamlessly integrated** CDPO into the **LLaMA-Factory** training framework.  
-No additional setup is required.
-
-The core implementation can be found at:
-```
-LLaMA-Factory/src/llamafactory/train/dpo/train.py
-```
-The key implementation extends standard DPO loss with an action-level KL regularization term to achieve conditional alignment:
-
-```python
-def adpo_loss(
-    self,
-    chosen_logps: torch.FloatTensor,
-    rejected_logps: torch.FloatTensor,
-    ref_chosen_logps: torch.FloatTensor,
-    ref_rejected_logps: torch.FloatTensor,
-    action_policy_logps: torch.FloatTensor,     # [B, T, V]
-    action_reference_logps: torch.FloatTensor,  # [B, T, V]
-    action_mask: torch.BoolTensor,              # [B, T, 1]
-    kl_type: str = "l2",
-    kl_coef: float = 1.0,
-) -> Tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
-
-    # === Step 1: Standard DPO loss ===
-    dpo_losses, dpo_chosen_rewards, dpo_rejected_rewards = self.dpo_loss(
-        chosen_logps,
-        rejected_logps,
-        ref_chosen_logps,
-        ref_rejected_logps
-    )
-
-    # === Step 2: Action-level KL regularization (masked) ===
-    if kl_type == "l2":
-        diff = (action_policy_logps - action_reference_logps) ** 2
-    elif kl_type == "abs":
-        diff = torch.abs(action_policy_logps - action_reference_logps)
-    else:
-        raise ValueError(f"Unsupported kl_type: {kl_type}")
-
-    # Masked KL only on valid action regions
-    masked_diff = diff * action_mask  # [B, T, V]
-    vocab_size = diff.size(-1)
-    token_count = action_mask.sum(dim=(1, 2)).clamp(min=1)
-
-    kl_reg = masked_diff.sum(dim=(1, 2)) / (token_count * vocab_size)
-
-    # === Step 3: Weighted combination ===
-    total_loss = dpo_losses + kl_coef * kl_reg
-
-    return total_loss, dpo_chosen_rewards, dpo_rejected_rewards
-```
-
-A ready-to-run CDPO training script is provided in the LLaMA-Factory repository.
-
-```
+```bash
 cd LLaMA-Factory
-# Step 1: Configure the dataset path in data/dataset_info.json
-# Step 2: Run the CDPO training script
 bash gimo/{dataset}/gimo/adpo_v1_sample1.sh
 ```
 
+### 2. DriftAware-GIMO
 
+`StructuredMemory` adds explicit slots for positive preferences, negative
+preferences, hard constraints, and soft preferences so we can inspect how
+memory behaves under preference drift.
 
-### Evaluation
+Example:
 
-Test recommendation metric using simulator environment:
-```
-# test the existing prompt-based IRA baseline
-bash main.sh
-# test the trained IRA
-bash main_lora.sh
-```
-
-### DriftAware-GIMO: Structured Memory under Interest Drift
-
-We add an optional structured memory extension for studying preference drift in
-multi-turn recommendation. The memory explicitly separates positive
-preferences, negative preferences, hard constraints, and soft preferences, each
-with confidence and turn metadata. It supports retain, merge, overwrite, and
-forget operations so experiments can measure when an agent preserves useful
-history versus follows stale preferences.
-
-The default simulator behavior is unchanged. To enable the new memory state in
-the user simulator, instantiate `UserAgentEnv` with `memory_mode="structured"`.
-
-```
+```python
 env = UserAgentEnv(
     persona_path="user_simulator/task/Yelp_test.jsonl",
     user_id=0,
@@ -153,35 +109,27 @@ env = UserAgentEnv(
 )
 ```
 
-Run the lightweight offline drift benchmark without an API key:
+Run the offline benchmark:
 
-```
+```bash
 python -m user_simulator.evaluation.drift_memory_eval
 ```
 
-This benchmark compares Full History, Summary Memory, Retrieval Memory, and
-Structured Memory using Recovery Turns, Stale Preference Violation Rate,
-Constraint Satisfaction Rate, Success@K, and Token Cost. See
-[`docs/driftaware_gimo.md`](docs/driftaware_gimo.md) for the full protocol.
+Protocol details are documented in [`docs/driftaware_gimo.md`](docs/driftaware_gimo.md).
 
-### CritiqueScope-GIMO: Scope-Aware Feedback Interventions
+### 3. CritiqueScope-GIMO
 
-We also add a stronger research extension: natural-language feedback is treated
-as an exposure-conditioned critique rather than a durable preference label by
-default. For example, "too much UFC lately" should temporarily attenuate UFC
-recommendations, while "never recommend political content" should become a
-persistent filter.
+`CritiqueScopeMemory` treats natural-language feedback as scope-aware memory
+updates instead of promoting every complaint into a durable preference.
 
-`CritiqueScopeMemory` maintains two channels:
+- Fast memory handles temporary fatigue, session context, and immediate
+  diversity requests.
+- Slow memory keeps durable constraints and preferences that are supported by
+  persistent language or repeated evidence.
 
-- Fast Memory: temporary critique interventions, fatigue, session context, and
-  slate-level diversity requests.
-- Slow Memory: durable constraints and preferences promoted only after explicit
-  persistent language or repeated supporting evidence.
+Example:
 
-Enable it with `memory_mode="critiquescope"`:
-
-```
+```python
 env = UserAgentEnv(
     persona_path="user_simulator/task/Yelp_test.jsonl",
     user_id=0,
@@ -194,35 +142,29 @@ env = UserAgentEnv(
 )
 ```
 
-Run the diagnostic benchmark:
+Run the memory-level diagnostic benchmark:
 
-```
+```bash
 python -B -m user_simulator.evaluation.critique_scope_eval
 ```
 
-Build counterfactual preference pairs for CDPO/DPO-style alignment:
+Build controlled preference pairs:
 
-```
+```bash
 python -B -m user_simulator.evaluation.critique_uplift_pairs --output critique_pairs.jsonl
 ```
 
-The benchmark reports Instruction Uplift, Over-Application Regret,
-Over-Correction Regret, Memory Contamination Rate, and Token Cost. See
-[`docs/critiquescope_gimo.md`](docs/critiquescope_gimo.md) for the schema and
-experimental protocol.
+See [`docs/critiquescope_gimo.md`](docs/critiquescope_gimo.md) for the full
+schema and protocol.
 
-### CritiqueWorld: Closed-Loop Scope-Aware Recommendation Testbed
+### 4. CritiqueWorld closed-loop evaluation
 
-The latest extension adds `CritiqueWorld`, a CPU-only, API-free closed-loop
-testbed for evaluating whether critique memory actually changes recommendation
-slates over time. Unlike the earlier memory-level diagnostics, CritiqueWorld
-generates a slate each turn, simulates user behavior from a transparent latent
-state, applies memory updates, reranks future items, and exports controlled
-counterfactual branch rollouts.
+CritiqueWorld is our main addition for testing whether memory interventions
+change actual recommendation trajectories rather than just memory state.
 
-Run the oracle closed-loop benchmark:
+Recommended full pipeline, oracle parser:
 
-```
+```bash
 python -B -m user_simulator.evaluation.run_closed_loop_pipeline \
   --modes none flat structured time_decay critiquescope \
   --scenarios all \
@@ -233,25 +175,9 @@ python -B -m user_simulator.evaluation.run_closed_loop_pipeline \
   --output-dir outputs/closed_loop_oracle
 ```
 
-The pipeline command runs the benchmark, validates `cdpo_pairs.jsonl`, builds
-the dataset manifest and materialized train/dev split files, and writes
-`closed_loop_report.md`. The lower-level benchmark can still be run directly
-when debugging only the rollout stage:
+Deterministic parser:
 
-```
-python -B -m user_simulator.evaluation.run_closed_loop_benchmark \
-  --modes none flat structured time_decay critiquescope \
-  --scenarios all \
-  --seeds 0 1 2 3 4 \
-  --max-turns 12 \
-  --top-k 5 \
-  --parser-mode oracle \
-  --output-dir outputs/closed_loop_oracle
-```
-
-Run the deterministic-parser variant:
-
-```
+```bash
 python -B -m user_simulator.evaluation.run_closed_loop_pipeline \
   --modes none flat structured time_decay critiquescope \
   --scenarios all \
@@ -262,17 +188,56 @@ python -B -m user_simulator.evaluation.run_closed_loop_pipeline \
   --output-dir outputs/closed_loop_deterministic
 ```
 
-Outputs include trajectory JSONL, branch rollout JSONL, raw DPO-style
-preference pairs, a lightweight `cdpo_pairs.jsonl` bridge for later
-LLaMA-Factory/GIMO formatting, `cdpo_validation.json`,
-`cdpo_dataset_manifest.json`, `llamafactory_dataset_info_snippet.json`,
-materialized `cdpo_train.jsonl` / `cdpo_dev.jsonl` splits, summary CSV/JSON,
-method-level aggregates, `closed_loop_report.md`, and a LaTeX table.
-The branch metrics should be described as a controlled
-counterfactual rollout proxy, not as complete causal inference. See
-[`docs/critique_world.md`](docs/critique_world.md).
+This pipeline runs the benchmark, validates `cdpo_pairs.jsonl`, materializes
+`cdpo_train.jsonl` and `cdpo_dev.jsonl`, builds the dataset manifest, and
+writes `closed_loop_report.md` plus `pipeline_metadata.json`.
 
+Important framing:
+the branch-level uplift and regret numbers are controlled counterfactual rollout
+proxies, not human-evaluation results and not full causal claims.
 
-## References
-1. Our evaluation method is based on [XueyangFeng/ECPO](https://github.com/XueyangFeng/ECPO).
-2. Our training code is based on [hiyouga/LLaMA-Factory](https://github.com/hiyouga/LLaMA-Factory).
+More detail lives in [`docs/critique_world.md`](docs/critique_world.md) and
+[`docs/experiment_protocol.md`](docs/experiment_protocol.md).
+
+## Repository Outputs
+
+The main generated artifacts currently tracked in this repository include:
+
+- `outputs/memory_baselines`
+- `outputs/memory_baselines_noisy`
+- `outputs/closed_loop_oracle`
+- `outputs/closed_loop_deterministic`
+
+Those folders contain JSONL trajectories, summary tables, validation files,
+dataset manifests, train/dev split files, and Markdown audit reports for the
+current controlled experiments.
+
+## Current Position
+
+What is already working:
+
+- controlled memory-level and closed-loop evaluation without calling paid APIs
+- CDPO bridge export with validation and dataset manifests
+- materialized train/dev split generation
+- deterministic regression tests for CritiqueScope and CritiqueWorld
+
+What still depends on external setup:
+
+- full SFT and CDPO training
+- real AILO rollout evaluation
+- OpenAI-compatible parser mode
+- GPU-backed model experiments
+
+## Acknowledgment
+
+This repository started from the GIMO project structure and continues to reuse
+parts of the surrounding training stack. The current branch, however, is aimed
+at our own ongoing memory and evaluation improvements rather than serving as a
+verbatim mirror of the original public release.
+
+Relevant upstream components:
+
+- GIMO training and simulator structure
+- [ECPO](https://github.com/XueyangFeng/ECPO) for related evaluation ideas
+- [LLaMA-Factory](https://github.com/hiyouga/LLaMA-Factory) for the training
+  framework used by the original stack
