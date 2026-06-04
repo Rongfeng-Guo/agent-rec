@@ -83,10 +83,12 @@ def test_compatibility_import_path():
 
 
 def test_deterministic_parser_outputs_schema():
-    critiques = parse_deterministic("I have seen too much UFC lately.")
+    critiques = parse_deterministic("I have seen too much UFC lately. Switch it up for a bit.")
     assert critiques
     assert critiques[0]["operation"] == "attenuate"
     assert critiques[0]["temporal_scope"] == "session"
+    assert critiques[0]["target"] == "UFC"
+    assert critiques[0]["horizon"] == 3
 
 
 def test_deterministic_parser_detects_genuine_drift():
@@ -94,7 +96,20 @@ def test_deterministic_parser_detects_genuine_drift():
     operations = {critique["operation"] for critique in critiques}
     targets = {critique["target"] for critique in critiques}
     assert {"rollback", "promote"} <= operations
-    assert {"Windows", "Mac laptops"} <= targets
+    assert {"Windows", "Mac"} <= targets
+
+
+def test_deterministic_parser_normalizes_persistent_dislike_target():
+    critiques = parse_deterministic("Please never recommend political content to me.")
+    assert critiques
+    assert critiques[0]["target"] == "Politics"
+
+
+def test_deterministic_parser_extracts_family_session_context():
+    critiques = parse_deterministic("Tonight I need a family-friendly dinner place.")
+    assert critiques
+    assert critiques[0]["target"] == "family"
+    assert critiques[0]["horizon"] == 4
 
 
 def test_rollout_adapter_loads_default_scenarios():

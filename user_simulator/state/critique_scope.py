@@ -16,6 +16,16 @@ VALID_OPERATIONS = {"promote", "attenuate", "filter", "diversify", "explore", "r
 VALID_OBJECT_SCOPES = {"item", "attribute", "category", "creator", "slate", "global"}
 VALID_TEMPORAL_SCOPES = {"next_slate", "session", "contextual", "persistent"}
 VALID_STATUSES = {"active_fast", "promoted_slow", "expired", "rolled_back"}
+TARGET_ALIASES = {
+    "ufc": "UFC",
+    "politics": "Politics",
+    "political": "Politics",
+    "windows": "Windows",
+    "mac": "Mac",
+    "mac laptops": "Mac",
+    "family": "family",
+    "family-friendly": "family",
+}
 
 
 @dataclass
@@ -291,7 +301,7 @@ def infer_critiques(user_utterance: str) -> List[dict]:
                     "promotion_condition": "persistent_language",
                 },
                 {
-                    "target": "Mac laptops",
+                    "target": "Mac",
                     "operation": "promote",
                     "reason": "genuine drift",
                     "object_scope": "category",
@@ -311,7 +321,7 @@ def infer_critiques(user_utterance: str) -> List[dict]:
                 "reason": "exposure fatigue",
                 "object_scope": "category",
                 "temporal_scope": "session",
-                "horizon": 5,
+                "horizon": 3 if any(cue in lower for cue in ["for a bit", "lately", "switch it up"]) else 5,
                 "hardness": "soft",
                 "confidence": 0.78,
                 "promotion_condition": "never",
@@ -353,7 +363,7 @@ def infer_critiques(user_utterance: str) -> List[dict]:
                 "reason": "session context",
                 "object_scope": "attribute",
                 "temporal_scope": "session",
-                "horizon": 6,
+                "horizon": 4,
                 "hardness": "soft",
                 "confidence": 0.74,
                 "promotion_condition": "never",
@@ -364,7 +374,7 @@ def infer_critiques(user_utterance: str) -> List[dict]:
 
 def extract_target(text: str) -> str:
     lowered = text.lower()
-    for marker in ["ufc", "politics", "political", "sweet", "dessert", "甜食", "政治"]:
+    for marker in ["mac laptops", "family-friendly", "ufc", "politics", "political", "windows", "mac", "family", "sweet", "dessert", "甜食", "政治"]:
         if marker in lowered:
-            return marker
+            return TARGET_ALIASES.get(marker, marker)
     return text
