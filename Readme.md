@@ -192,6 +192,34 @@ This pipeline runs the benchmark, validates `cdpo_pairs.jsonl`, materializes
 `cdpo_train.jsonl` and `cdpo_dev.jsonl`, builds the dataset manifest, and
 writes `closed_loop_report.md` plus `pipeline_metadata.json`.
 
+Validity gate:
+
+```bash
+python -B -m user_simulator.evaluation.run_validity_gate \
+  --modes none flat structured time_decay critiquescope \
+  --scenarios all \
+  --seeds 0 1 2 3 4 \
+  --max-turns 12 \
+  --top-k 5 \
+  --output-dir outputs/validity_gate \
+  --fail-on-critical-invariant
+```
+
+Pipeline with validity gate:
+
+```bash
+python -B -m user_simulator.evaluation.run_closed_loop_pipeline \
+  --modes none flat structured time_decay critiquescope \
+  --scenarios all \
+  --seeds 0 1 2 3 4 \
+  --max-turns 12 \
+  --top-k 5 \
+  --parser-mode oracle \
+  --run-validity-gate \
+  --fail-on-critical-invariant \
+  --output-dir outputs/closed_loop_oracle
+```
+
 Interpretation:
 the branch-level uplift and regret numbers are controlled counterfactual rollout
 proxies intended for diagnostic evaluation.
@@ -207,6 +235,7 @@ The main generated artifacts currently tracked in this repository include:
 - `outputs/memory_baselines_noisy`
 - `outputs/closed_loop_oracle`
 - `outputs/closed_loop_deterministic`
+- `outputs/validity_gate`
 
 These folders contain JSONL trajectories, summary tables, validation files,
 dataset manifests, train/dev split files, and Markdown audit reports for the

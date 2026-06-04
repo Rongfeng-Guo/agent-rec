@@ -53,6 +53,9 @@ original LLaMA-Factory scripts once model/data configuration is available.
 - CategoryCoverage.
 - InstructionUplift@1 and InstructionUplift@H.
 - OverCorrectionRegret@1 and OverCorrectionRegret@H.
+- DuringHorizonUtility.
+- PostExpiryRecoveryUtility.
+- PostExpirySuppressionRegret.
 - ScopeClassificationAccuracy.
 - Parser, memory-update, policy-application, and candidate-coverage error
   attribution.
@@ -116,6 +119,14 @@ python -B -m user_simulator.evaluation.run_closed_loop_pipeline \
   --top-k 5 \
   --parser-mode deterministic \
   --output-dir outputs/closed_loop_deterministic
+python -B -m user_simulator.evaluation.run_validity_gate \
+  --modes none flat structured time_decay critiquescope \
+  --scenarios all \
+  --seeds 0 1 2 3 4 \
+  --max-turns 12 \
+  --top-k 5 \
+  --output-dir outputs/validity_gate \
+  --fail-on-critical-invariant
 ```
 
 ## Full Run
@@ -217,6 +228,15 @@ outputs/closed_loop_oracle/
   tables.tex
 outputs/closed_loop_deterministic/
   same schema as closed_loop_oracle
+outputs/validity_gate/
+  invariant_results.csv
+  invariant_failures.jsonl
+  lifecycle_trace.jsonl
+  score_delta_trace.jsonl
+  method_scenario_invariants.csv
+  scenario_report.md
+  tables.tex
+  run_metadata.json
 ```
 
 ## Reproducibility

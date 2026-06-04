@@ -123,6 +123,9 @@ Closed-loop outputs include:
 - CategoryCoverage
 - InstructionUplift@1 / @H
 - OverCorrectionRegret@1 / @H
+- DuringHorizonUtility
+- PostExpiryRecoveryUtility
+- PostExpirySuppressionRegret
 - ExpiredConstraintViolationRate
 - DriftRecoveryTurns
 - RollbackAccuracy
@@ -148,6 +151,23 @@ python -B -m user_simulator.evaluation.run_closed_loop_pipeline \
 The pipeline runs the benchmark, validates `cdpo_pairs.jsonl`, materializes
 `cdpo_train.jsonl` / `cdpo_dev.jsonl`, builds the LLaMA-Factory dataset-info
 snippet, audits the output folder, and writes `pipeline_metadata.json`.
+
+Validity gate:
+
+```bash
+python -B -m user_simulator.evaluation.run_validity_gate \
+  --modes none flat structured time_decay critiquescope \
+  --scenarios all \
+  --seeds 0 1 2 3 4 \
+  --max-turns 12 \
+  --top-k 5 \
+  --output-dir outputs/validity_gate \
+  --fail-on-critical-invariant
+```
+
+The validity gate materializes invariant-level CSV/JSONL outputs, lifecycle
+traces, score delta traces, a scenario report, and fail-fast exit behavior for
+critical invariant failures.
 
 Deterministic parser:
 
@@ -214,6 +234,7 @@ run_metadata.json
 tables.tex
 README.md
 pipeline_metadata.json
+validity_gate/
 ```
 
 ## Connecting Back to GIMO

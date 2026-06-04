@@ -6,7 +6,7 @@
 
 ## Current HEAD
 
-Run `git rev-parse HEAD` after the final status commit for the exact commit.
+`76491c69390e2ae549a33429b6539eb6b6be0624` at the start of the latest validity-gate audit round.
 
 ## COMPLETED
 
@@ -79,6 +79,27 @@ Run `git rev-parse HEAD` after the final status commit for the exact commit.
 - One-command closed-loop pipeline runner that chains benchmark execution, CDPO
   validation, manifest/split materialization, report generation, and
   `pipeline_metadata.json`.
+- Critique lifecycle alignment for next-slate semantics:
+  - critique write occurs before the next rerank
+  - rerank applies at least once before decay
+  - fast-memory decay occurs after effective application
+  - `next_slate, horizon=1` affects exactly one subsequent slate
+- Differential diversify reranking with:
+  - `diversity_bonus`
+  - `recent_exposure_penalty`
+  - `intervention_score_delta`
+  - per-item `rank_before` / `rank_after`
+- CritiqueWorld validity gate with:
+  - scenario-level invariant registry
+  - lifecycle traces
+  - score delta traces
+  - invariant CSV/JSONL exports
+  - fail-fast critical invariant mode
+- Additional post-expiry metrics:
+  - `DuringHorizonUtility`
+  - `PostExpiryRecoveryUtility`
+  - `PostExpirySuppressionRegret`
+- API-free CPU GitHub Actions smoke workflow.
 - Pytest regression coverage for CritiqueScope and CritiqueWorld.
 - Documentation:
   - `docs/driftaware_gimo.md`
@@ -96,8 +117,9 @@ evaluation, and not complete causal inference.
 | --- | --- | ---: | --- |
 | Memory baseline deterministic | SMOKE_TEST_ONLY | 150 rows | `outputs/memory_baselines` |
 | Memory baseline noisy | SMOKE_TEST_ONLY | 75 rows | `outputs/memory_baselines_noisy` |
-| CritiqueWorld oracle | SMOKE_TEST_ONLY | 175 summary rows; 1740 trajectory rows; 2850 branch rows; 80 strict-positive raw pairs; 80 CDPO bridge pairs; CDPO validation PASS; manifest built | `outputs/closed_loop_oracle` |
-| CritiqueWorld deterministic parser | SMOKE_TEST_ONLY | 105 summary rows; 1044 trajectory rows; 1710 branch rows; 27 strict-positive raw pairs; 27 CDPO bridge pairs; CDPO validation PASS; manifest built | `outputs/closed_loop_deterministic` |
+| CritiqueWorld oracle | SMOKE_TEST_ONLY | 175 summary rows; 2095 trajectory rows; 3375 branch rows; 65 strict-positive raw pairs; 65 CDPO bridge pairs; CDPO validation PASS; manifest built; pipeline validity gate PASS | `outputs/closed_loop_oracle` |
+| CritiqueWorld deterministic parser | SMOKE_TEST_ONLY | 105 summary rows; 1257 trajectory rows; 2025 branch rows; 29 strict-positive raw pairs; 29 CDPO bridge pairs; CDPO validation PASS; manifest built; pipeline validity gate records parser-sensitive failures | `outputs/closed_loop_deterministic` |
+| CritiqueWorld validity gate | PASS | 100/100 invariants passed; 0 critical failures; oracle parser | `outputs/validity_gate` |
 
 ## Actual Closed-Loop Result Snapshot
 
@@ -147,6 +169,13 @@ effectiveness.
   branch because no API endpoint/key is configured.
 - GPE/HAP scripts require an OpenAI-compatible endpoint and rollout inputs.
 
+## KNOWN_LIMITATIONS
+
+- The deterministic parser validity gate remains parser-sensitive and records
+  invariant failures under `outputs/closed_loop_deterministic/validity_gate`.
+- The oracle validity gate is the current reference configuration for
+  fail-fast invariant auditing.
+
 ## BLOCKED_MISSING_DATA
 
 - Original prompt-based IRA path references scripts/configuration that are not
@@ -154,11 +183,11 @@ effectiveness.
 - Prebuilt embedding index, configured dataset paths, and model/data artifacts
   are needed for full GIMO evaluation and training.
 
-## Commands Run In This Round
+## Previous Pipeline Round
 
 | Command | Status | Notes |
 | --- | --- | --- |
-| `git status --short` | PASS | Initial worktree was clean. |
+| `git status --short` | PASS | Historical pipeline round worktree check. |
 | `git branch --show-current` | PASS | Branch: `codex/driftaware-structured-memory`. |
 | `git log --oneline --decorate -n 15` | PASS | Verified current history. |
 | `pytest -q tests/test_critique_world.py` | PASS | 12 CritiqueWorld tests passed. |
@@ -174,14 +203,30 @@ effectiveness.
 | `python -m compileall user_simulator` | PASS | Bytecode side effects cleaned from the worktree. |
 | `git diff --check` | PASS | Only Windows CRLF conversion warnings were reported. |
 
+## Latest Audit Round
+
+| Command | Status | Notes |
+| --- | --- | --- |
+| `git status --short` | PASS | Worktree inspected before implementation. |
+| `git branch --show-current` | PASS | Branch: `codex/driftaware-structured-memory`. |
+| `git rev-parse HEAD` | PASS | Audit-round start SHA: `76491c69390e2ae549a33429b6539eb6b6be0624`. |
+| `git log --oneline --decorate -n 20` | PASS | Recent local history inspected before code changes. |
+| `pytest -q tests/test_critique_world.py tests/test_critique_scope.py` | PASS | 49 targeted tests passed after lifecycle/diversify fixes. |
+| `pytest -q` | PASS | 51 tests passed after validity gate and CI additions. |
+| `python -B -m user_simulator.evaluation.run_validity_gate --modes none flat structured time_decay critiquescope --scenarios all --seeds 0 1 --max-turns 12 --top-k 5 --output-dir outputs\\validity_gate_smoke --fail-on-critical-invariant` | PASS | Smoke gate passed after invariant and mechanism fixes. |
+| `python -B -m user_simulator.evaluation.run_validity_gate --modes none flat structured time_decay critiquescope --scenarios all --seeds 0 1 2 3 4 --max-turns 12 --top-k 5 --output-dir outputs\\validity_gate --fail-on-critical-invariant` | PASS | Full gate passed with 100/100 invariants and 0 critical failures. |
+| `python -m compileall user_simulator` | PASS | Compile check passed; generated bytecode requires cleanup before commit. |
+| `git diff --check` | PASS | Only CRLF warnings; no whitespace errors. |
+
 ## Next Priorities
 
 1. Connect real GIMO rollout logs to the CritiqueWorld branch schema.
 2. Harden `cdpo_pairs.jsonl` into the exact dataset schema selected for the
    final LLaMA-Factory/GIMO CDPO training recipe.
 3. Add scenario coverage for noisy closed-loop ambiguity.
-4. Run `openai_compatible` parser mode once API configuration is available.
-5. Run full SFT/GPE/HAP/CDPO after GPU, model, and data paths are configured.
+4. Extend validity-gate invariants to real rollout adapter inputs.
+5. Run `openai_compatible` parser mode once API configuration is available.
+6. Run full SFT/GPE/HAP/CDPO after GPU, model, and data paths are configured.
 
 ## Recommended Push Commands
 

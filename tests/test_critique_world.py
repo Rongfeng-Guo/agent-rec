@@ -17,9 +17,11 @@ from user_simulator.evaluation.run_closed_loop_benchmark import (
     run_branch_rollouts,
 )
 from user_simulator.evaluation.run_closed_loop_pipeline import main as run_pipeline_main
+from user_simulator.evaluation.run_validity_gate import main as run_validity_gate_main
 from user_simulator.evaluation.validate_cdpo_pairs import validate_file
 from user_simulator.policies.memory_rerank_policy import rank_items
 from user_simulator.scenarios.closed_loop_scenarios import get_scenario
+from user_simulator.state.critique_scope import CritiqueScopeMemory
 from user_simulator.worlds.critique_world import CritiqueWorldConfig, Item, LatentUserState, deterministic_critique_for_slate
 
 
@@ -433,6 +435,129 @@ def test_fatigue_critique_tie_breaks_by_slate_order():
     assert critique["critiques"][0]["target"] == "Windows"
 
 
+def test_next_slate_horizon_one_applies_exactly_once():
+    memory = CritiqueScopeMemory()
+    state = LatentUserState(stable_positive={"category": ["UFC", "Boxing"]})
+    scenario = get_scenario("diversity_request")
+    memory.apply_turn(
+        "Recommend something different but still related.",
+        critiques=scenario.injected_events[0]["critiques"],
+        current_turn=1,
+    )
+
+    first_rank = rank_items(scenario.items, state, memory, "critiquescope", 5, CritiqueWorldConfig())
+    assert memory.active_fast()
+    assert any(
+        breakdown["intervention_score_delta"] != 0.0 for breakdown in first_rank.score_breakdowns.values()
+    )
+
+    memory.turn = 2
+    memory.decay_fast_memory()
+    assert not memory.active_fast()
+
+    second_rank = rank_items(scenario.items, state, memory, "critiquescope", 5, CritiqueWorldConfig())
+    assert all(
+        breakdown["intervention_score_delta"] == 0.0 for breakdown in second_rank.score_breakdowns.values()
+    )
+
+
+def test_session_scope_survives_until_session_end():
+    memory = CritiqueScopeMemory()
+    critique = {
+        "target": "UFC",
+        "operation": "attenuate",
+        "reason": "exposure fatigue",
+        "object_scope": "category",
+        "temporal_scope": "session",
+        "horizon": 5,
+        "hardness": "soft",
+        "confidence": 0.78,
+        "promotion_condition": "never",
+    }
+    memory.apply_turn("too much UFC", critiques=[critique], current_turn=1)
+    for _ in range(3):
+        memory.decay_fast_memory()
+    assert memory.active_fast()
+    memory.end_session()
+    assert not memory.active_fast()
+
+
+def test_contextual_scope_expires_after_reset():
+    memory = CritiqueScopeMemory()
+    critique = {
+        "target": "family",
+        "operation": "promote",
+        "reason": "session context",
+        "object_scope": "attribute",
+        "temporal_scope": "contextual",
+        "horizon": 6,
+        "hardness": "soft",
+        "confidence": 0.74,
+        "promotion_condition": "never",
+    }
+    memory.apply_turn("family dinner tonight", critiques=[critique], current_turn=1)
+    assert memory.active_fast()
+    memory.end_session()
+    assert memory.fast_memory[0].status == "expired"
+    assert not memory.active_fast()
+
+
+def test_fast_memory_decay_occurs_after_effective_application():
+    scenario = get_scenario("temporary_fatigue")
+    rows, memory, *_ = rollout(scenario, "critiquescope", 0, "oracle", 6, 5, CritiqueWorldConfig())
+    turn_two = next(row for row in rows if row["turn"] == 2)
+    turn_three = next(row for row in rows if row["turn"] == 3)
+    assert turn_two["memory_update"]["applied"]
+    assert any("ufc" not in item.lower() for item in turn_three["ranked_slate"]["slate"][:2])
+    expire_events = [event for event in memory.events if event["event"] == "expire_fast"]
+    assert expire_events
+    assert expire_events[0]["turn"] >= 5
+
+
+def test_diversify_changes_ranking():
+    scenario = get_scenario("diversity_request")
+    state = LatentUserState(stable_positive={"category": ["UFC", "Boxing"]}, category_exposure_counts={"UFC": 4, "Boxing": 2})
+    baseline = rank_items(scenario.items, state, CritiqueScopeMemory(), "critiquescope", 5, CritiqueWorldConfig())
+
+    memory = CritiqueScopeMemory()
+    memory.apply_turn(
+        "Recommend something different but still related.",
+        critiques=scenario.injected_events[0]["critiques"],
+        current_turn=1,
+    )
+    diversified = rank_items(scenario.items, state, memory, "critiquescope", 5, CritiqueWorldConfig())
+    assert baseline.slate != diversified.slate
+
+
+def test_diversify_increases_slate_diversity():
+    rows, *_ = run_scenario("diversity_request", mode="critiquescope", max_turns=4)
+    before = next(row for row in rows if row["turn"] == 1)["ranked_slate"]["slate"]
+    after = next(row for row in rows if row["turn"] == 2)["ranked_slate"]["slate"]
+    before_diversity = len({item.split("_")[0] for item in before})
+    after_diversity = len({item.split("_")[0] for item in after})
+    assert after_diversity >= before_diversity
+
+
+def test_diversify_does_not_pollute_slow_memory():
+    _, memory, *_ = run_scenario("diversity_request", mode="critiquescope", max_turns=5)
+    assert memory.memory_contamination_rate() == 0.0
+    assert not memory.active_slow()
+
+
+def test_diversify_preserves_relevance_floor():
+    scenario = get_scenario("diversity_request")
+    state = LatentUserState(stable_positive={"category": ["UFC", "Boxing"]}, category_exposure_counts={"UFC": 4, "Boxing": 2})
+    memory = CritiqueScopeMemory()
+    memory.apply_turn(
+        "Recommend something different but still related.",
+        critiques=scenario.injected_events[0]["critiques"],
+        current_turn=1,
+    )
+    diversified = rank_items(scenario.items, state, memory, "critiquescope", 5, CritiqueWorldConfig())
+    top_categories = {item.category for item in diversified.slate[:3]}
+    assert top_categories & {"Boxing", "Fitness", "Linux", "Mac", "Science", "Jazz", "Restaurant"}
+
+
 def test_closed_loop_pipeline_creates_gated_artifacts(tmp_path):
     import sys
 
@@ -491,3 +616,74 @@ def test_closed_loop_pipeline_rejects_openai_compatible(tmp_path):
             raise AssertionError("openai_compatible pipeline should be blocked without API config")
     finally:
         sys.argv = old_argv
+
+
+def test_validity_gate_exports_expected_files(tmp_path):
+    import sys
+
+    old_argv = sys.argv
+    sys.argv = [
+        "run_validity_gate",
+        "--modes",
+        "critiquescope",
+        "--scenarios",
+        "diversity_request",
+        "--seeds",
+        "0",
+        "--max-turns",
+        "4",
+        "--top-k",
+        "5",
+        "--output-dir",
+        str(tmp_path),
+        "--fail-on-critical-invariant",
+    ]
+    try:
+        run_validity_gate_main()
+    finally:
+        sys.argv = old_argv
+
+    expected = {
+        "invariant_results.csv",
+        "invariant_failures.jsonl",
+        "lifecycle_trace.jsonl",
+        "score_delta_trace.jsonl",
+        "method_scenario_invariants.csv",
+        "scenario_report.md",
+        "tables.tex",
+        "run_metadata.json",
+    }
+    assert expected <= {path.name for path in tmp_path.iterdir()}
+
+
+def test_closed_loop_pipeline_can_run_validity_gate(tmp_path):
+    import sys
+
+    old_argv = sys.argv
+    sys.argv = [
+        "run_closed_loop_pipeline",
+        "--modes",
+        "critiquescope",
+        "--scenarios",
+        "diversity_request",
+        "--seeds",
+        "0",
+        "--max-turns",
+        "4",
+        "--top-k",
+        "5",
+        "--parser-mode",
+        "oracle",
+        "--run-validity-gate",
+        "--fail-on-critical-invariant",
+        "--output-dir",
+        str(tmp_path),
+    ]
+    try:
+        run_pipeline_main()
+    finally:
+        sys.argv = old_argv
+
+    metadata = json.loads((tmp_path / "pipeline_metadata.json").read_text(encoding="utf-8"))
+    assert any(step["name"] == "run_validity_gate" for step in metadata["steps"])
+    assert (tmp_path / "validity_gate" / "scenario_report.md").exists()
