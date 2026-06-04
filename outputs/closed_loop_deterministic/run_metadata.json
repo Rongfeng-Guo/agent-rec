@@ -1,0 +1,33 @@
+{
+  "command": "C:\\Users\\grfpa\\Documents\\Codex\\2026-06-04\\rongfeng-guo-gimo-https-github-com\\GIMO\\user_simulator\\evaluation\\run_closed_loop_benchmark.py --modes none flat structured time_decay critiquescope --scenarios all --seeds 0 1 2 --max-turns 12 --top-k 5 --parser-mode deterministic --output-dir outputs\\closed_loop_deterministic",
+  "timestamp_utc": "2026-06-04T08:30:35.154469+00:00",
+  "git_commit": "aa35b8414a46f75d1570a6cab16335c487572b12",
+  "git_branch": "codex/driftaware-structured-memory",
+  "python_version": "3.12.3 | packaged by conda-forge | (main, Apr 15 2024, 18:20:11) [MSC v.1938 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "modes": [
+    "none",
+    "flat",
+    "structured",
+    "time_decay",
+    "critiquescope"
+  ],
+  "scenarios": [
+    "temporary_fatigue",
+    "stable_dislike",
+    "diversity_request",
+    "session_context",
+    "genuine_drift",
+    "behavioral_rollback",
+    "mixed_multi_turn"
+  ],
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "parser_mode": "deterministic",
+  "status": "SMOKE_TEST_ONLY",
+  "proxy": "controlled counterfactual rollout proxy",
+  "dpo_pair_count": 249
+}
