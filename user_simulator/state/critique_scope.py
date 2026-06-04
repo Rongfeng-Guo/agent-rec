@@ -37,6 +37,7 @@ class Critique:
     remaining_horizon: Optional[int] = None
     active: bool = True
     evidence_count: int = 1
+    applications_observed: int = 0
 
     def __post_init__(self):
         self.temporal_scope = self.temporal_scope.replace("-", "_")
@@ -96,12 +97,16 @@ class CritiqueScopeMemory:
         self.slow_memory = []
         self.events = []
 
-    def apply_turn(self, user_utterance: str, critiques: Optional[Iterable[dict]] = None):
-        self.turn += 1
+    def apply_turn(
+        self,
+        user_utterance: str,
+        critiques: Optional[Iterable[dict]] = None,
+        current_turn: Optional[int] = None,
+    ):
+        self.turn = self.turn + 1 if current_turn is None else current_turn
         parsed = list(critiques) if critiques is not None else infer_critiques(user_utterance)
         for critique_data in parsed:
             self.add_critique(critique_data)
-        self.decay_fast_memory()
 
     def add_critique(self, critique_data: dict) -> Critique:
         critique = Critique(created_turn=self.turn, **critique_data)
@@ -111,6 +116,7 @@ class CritiqueScopeMemory:
             existing.confidence = max(existing.confidence, critique.confidence)
             existing.remaining_horizon = max(existing.remaining_horizon or 0, critique.horizon)
             existing.reason = critique.reason or existing.reason
+            existing.expires_at_step = None if existing.is_persistent else self.turn + (existing.remaining_horizon or 0)
             critique = existing
             event_type = "refresh_fast"
         elif critique.is_persistent:
@@ -164,10 +170,12 @@ class CritiqueScopeMemory:
         for critique in self.fast_memory:
             if not critique.active or critique.remaining_horizon is None:
                 continue
-            if critique.temporal_scope == "next_slate":
+            if critique.created_turn >= self.turn:
+                continue
+            critique.applications_observed += 1
+            if critique.temporal_scope in {"next_slate", "session", "contextual"}:
                 critique.remaining_horizon -= 1
-            elif critique.temporal_scope in {"session", "contextual"}:
-                critique.remaining_horizon -= 1
+                critique.expires_at_step = self.turn + max(0, critique.remaining_horizon)
             if critique.remaining_horizon <= 0:
                 critique.active = False
                 critique.status = "expired"
@@ -175,10 +183,10 @@ class CritiqueScopeMemory:
 
     def end_session(self):
         for critique in self.fast_memory:
-            if critique.temporal_scope in {"session", "contextual"}:
+            if critique.active and critique.temporal_scope in {"session", "contextual"}:
                 critique.active = False
                 critique.status = "expired"
-                self._record("expire_session", critique)
+                self._record("expire_context_reset" if critique.temporal_scope == "contextual" else "expire_session", critique)
 
     def active_fast(self) -> List[Critique]:
         return [critique for critique in self.fast_memory if critique.active]
