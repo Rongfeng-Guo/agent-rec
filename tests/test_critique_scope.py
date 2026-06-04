@@ -8,6 +8,7 @@ from user_simulator.evaluation.critique_scope_eval import (
 from user_simulator.evaluation.critique_uplift_pairs import build_pairs
 from user_simulator.evaluation.critique_parser import parse_deterministic
 from user_simulator.evaluation.critique_rollout_adapter import load_rollouts
+from user_simulator.evaluation.summarize_memory_baselines import aggregate
 from user_simulator.state.critique_scope import CritiqueScopeMemory
 from user_simulator.state.critique_scope_memory import CritiqueScopeMemory as CompatMemory
 
@@ -98,3 +99,14 @@ def test_rollout_adapter_loads_default_scenarios():
     scenarios = load_rollouts(None)
     assert len(scenarios) >= 6
     assert all("follow_value" in scenario for scenario in scenarios)
+
+
+def test_summary_aggregation_groups_by_method():
+    rows = [
+        {"method": "flat", "scenario": "a", "memory_contamination_rate": "1.0"},
+        {"method": "flat", "scenario": "b", "memory_contamination_rate": "0.0"},
+    ]
+    result = aggregate(rows, ["method"], ["memory_contamination_rate"])
+    assert result[0]["method"] == "flat"
+    assert result[0]["n"] == 2
+    assert result[0]["memory_contamination_rate_mean"] == 0.5

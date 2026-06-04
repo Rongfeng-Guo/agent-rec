@@ -156,6 +156,14 @@ python -B -m user_simulator.evaluation.critique_uplift_pairs --output critique_p
 Each pair prefers the follow branch over either the ignore branch or the
 over-apply branch when the counterfactual uplift is positive.
 
+Aggregate runner outputs for paper-style tables:
+
+```bash
+python -B -m user_simulator.evaluation.summarize_memory_baselines \
+  --input outputs/memory_baselines/summary.csv \
+  --output-dir outputs/memory_baselines/aggregate
+```
+
 ## GIMO integration
 
 The simulator now supports:

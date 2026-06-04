@@ -1,0 +1,72 @@
+[
+  {
+    "method": "critiquescope",
+    "n": 30,
+    "instruction_satisfaction_mean": 1.0,
+    "memory_contamination_rate_mean": 0.0,
+    "over_correction_rate_mean": 0.0,
+    "over_correction_regret_mean": 0.0,
+    "promotion_precision_mean": 1.0,
+    "promotion_recall_mean": 1.0,
+    "rollback_accuracy_mean": 1.0,
+    "instruction_uplift_mean": 1.2349999999999999,
+    "over_application_regret_mean": 0.5816666666666666,
+    "token_cost_mean": 25.166666666666668
+  },
+  {
+    "method": "flat",
+    "n": 30,
+    "instruction_satisfaction_mean": 1.0,
+    "memory_contamination_rate_mean": 0.6666666666666666,
+    "over_correction_rate_mean": 0.3333333333333333,
+    "over_correction_regret_mean": 0.3,
+    "promotion_precision_mean": 0.3333333333333333,
+    "promotion_recall_mean": 1.0,
+    "rollback_accuracy_mean": 0.8333333333333334,
+    "instruction_uplift_mean": 1.2349999999999999,
+    "over_application_regret_mean": 0.5816666666666666,
+    "token_cost_mean": 29.5
+  },
+  {
+    "method": "none",
+    "n": 30,
+    "instruction_satisfaction_mean": 0.0,
+    "memory_contamination_rate_mean": 0.0,
+    "over_correction_rate_mean": 0.0,
+    "over_correction_regret_mean": 0.0,
+    "promotion_precision_mean": 1.0,
+    "promotion_recall_mean": 0.6666666666666666,
+    "rollback_accuracy_mean": 0.8333333333333334,
+    "instruction_uplift_mean": 0.0,
+    "over_application_regret_mean": 0.0,
+    "token_cost_mean": 0.0
+  },
+  {
+    "method": "structured",
+    "n": 30,
+    "instruction_satisfaction_mean": 1.0,
+    "memory_contamination_rate_mean": 0.25,
+    "over_correction_rate_mean": 0.3333333333333333,
+    "over_correction_regret_mean": 0.3,
+    "promotion_precision_mean": 0.75,
+    "promotion_recall_mean": 1.0,
+    "rollback_accuracy_mean": 0.8333333333333334,
+    "instruction_uplift_mean": 1.2349999999999999,
+    "over_application_regret_mean": 0.5816666666666666,
+    "token_cost_mean": 23.666666666666668
+  },
+  {
+    "method": "time_decay",
+    "n": 30,
+    "instruction_satisfaction_mean": 1.0,
+    "memory_contamination_rate_mean": 0.0,
+    "over_correction_rate_mean": 0.0,
+    "over_correction_regret_mean": 0.0,
+    "promotion_precision_mean": 1.0,
+    "promotion_recall_mean": 1.0,
+    "rollback_accuracy_mean": 0.8333333333333334,
+    "instruction_uplift_mean": 1.2349999999999999,
+    "over_application_regret_mean": 0.5816666666666666,
+    "token_cost_mean": 25.166666666666668
+  }
+]

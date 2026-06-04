@@ -63,6 +63,9 @@ python -B -m user_simulator.evaluation.run_memory_baselines \
   --scenario-set deterministic \
   --seeds 0 1 2 3 4 \
   --output-dir outputs/memory_baselines
+python -B -m user_simulator.evaluation.summarize_memory_baselines \
+  --input outputs/memory_baselines/summary.csv \
+  --output-dir outputs/memory_baselines/aggregate
 pytest -q tests/test_critique_scope.py
 ```
 
@@ -123,6 +126,12 @@ outputs/memory_baselines/
   summary.json
   run_metadata.json
   README.md
+  aggregate/
+    method_summary.csv
+    method_summary.json
+    method_scenario_summary.csv
+    method_scenario_summary.json
+    method_summary.tex
 ```
 
 ## Reproducibility

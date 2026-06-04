@@ -34,6 +34,7 @@ Run `git rev-parse HEAD` for the exact current commit after status-file edits.
 - Critique parser with deterministic and optional OpenAI-compatible backend.
 - Rollout adapter that normalizes follow/ignore/over-apply utilities and emits
   uplift preference pairs.
+- Result aggregator that exports method/scenario summaries and LaTeX tables.
 - Unified baseline runner for `none`, `flat`, `structured`, `time_decay`, and
   `critiquescope`.
 - CSV/JSON/JSONL/metadata result output.
@@ -59,7 +60,8 @@ Run `git rev-parse HEAD` for the exact current commit after status-file edits.
 | `python -B -m user_simulator.evaluation.critique_parser --backend deterministic --output outputs\parser_smoke\parsed.jsonl` | PASS | Five feedback utterances parsed with deterministic fallback. |
 | `python -B -m user_simulator.evaluation.critique_rollout_adapter --output-dir outputs\rollout_adapter_smoke` | PASS | Six scenarios normalized and 12 uplift pairs written. |
 | `python -B -m user_simulator.evaluation.run_memory_baselines --modes none flat structured time_decay critiquescope --scenario-set deterministic --seeds 0 1 2 3 4 --output-dir outputs\memory_baselines` | PASS | 150 rows written. |
-| `pytest -q` | FAIL then PASS | First failed by collecting LLaMA-Factory tests without `transformers`, `accelerate`, and `datasets`; added `pytest.ini`, then 13 tests passed. |
+| `python -B -m user_simulator.evaluation.summarize_memory_baselines --input outputs\memory_baselines\summary.csv --output-dir outputs\memory_baselines\aggregate` | PASS | Five method summaries, method-scenario summaries, and LaTeX table written. |
+| `pytest -q` | FAIL then PASS | First failed by collecting LLaMA-Factory tests without `transformers`, `accelerate`, and `datasets`; added `pytest.ini`, then 14 tests passed. |
 | `python -m compileall user_simulator` | PASS | Bytecode side effects cleaned/restored. |
 | `git diff --check` | PASS | No whitespace errors. |
 
@@ -74,6 +76,12 @@ outputs/memory_baselines/
   runs.jsonl
   summary.csv
   summary.json
+  aggregate/
+    method_summary.csv
+    method_summary.json
+    method_scenario_summary.csv
+    method_scenario_summary.json
+    method_summary.tex
 outputs/parser_smoke/
   parsed.jsonl
 outputs/rollout_adapter_smoke/
