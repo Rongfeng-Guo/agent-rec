@@ -262,6 +262,30 @@ def test_cdpo_validator_rejects_non_positive_delta(tmp_path):
     assert any("strictly positive" in error for error in result["errors"])
 
 
+def test_cdpo_validator_rejects_duplicate_ids(tmp_path):
+    row = {
+        "id": "duplicate",
+        "scenario": "temporary_fatigue",
+        "seed": 0,
+        "method": "critiquescope",
+        "parser_mode": "oracle",
+        "conversations": [{"from": "human", "value": "x"}],
+        "chosen": {"branch": "follow", "policy": "x", "trajectory": "x"},
+        "rejected": {"branch": "ignore", "policy": "y", "trajectory": "y"},
+        "score_delta": 0.1,
+        "metadata": {
+            "format": "llamafactory_dpo_bridge",
+            "source": "CritiqueWorld",
+            "proxy": "controlled counterfactual rollout proxy",
+        },
+    }
+    path = tmp_path / "dupes.jsonl"
+    path.write_text(json.dumps(row) + "\n" + json.dumps(row) + "\n", encoding="utf-8")
+    result = validate_file(path)
+    assert result["status"] == "FAIL"
+    assert result["duplicate_ids"] == ["duplicate"]
+
+
 def test_cdpo_dataset_manifest_summarizes_valid_pairs(tmp_path):
     from user_simulator.evaluation.run_closed_loop_benchmark import main
     import sys

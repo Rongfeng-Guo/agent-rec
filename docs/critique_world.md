@@ -94,7 +94,8 @@ counterfactual pair schema (`dpo_pairs.jsonl`) and a lightweight
 LLaMA-Factory/DPO bridge schema (`cdpo_pairs.jsonl`) with `conversations`,
 `chosen`, `rejected`, and `score_delta` fields. Pairs are emitted only when the
 chosen `follow` branch has strictly higher rollout utility than the rejected
-branch.
+branch. Pair ids include method, scenario, seed, snapshot turn, critique point,
+and rejected branch; the validator rejects duplicate ids.
 
 ## Error Attribution
 

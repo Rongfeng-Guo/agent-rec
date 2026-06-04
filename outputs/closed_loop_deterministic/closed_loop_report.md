@@ -4,7 +4,7 @@ This is a controlled counterfactual rollout proxy report. It is not human evalua
 
 - Output directory: `outputs\closed_loop_deterministic`
 - Parser mode: `deterministic`
-- Git commit recorded by run: `f9ba0bcf8b095c864189f71090f9820385a9d7de`
+- Git commit recorded by run: `5b037c7bdc03bc7ee56d5abf2f3ebdc67e337759`
 - Audit status: `PASS`
 
 ## Dataset Gate
@@ -16,7 +16,7 @@ This is a controlled counterfactual rollout proxy report. It is not human evalua
 | rows | 27 |
 | train/dev | 22/5 |
 | score_delta | 0.066 / 0.191 / 0.306 |
-| sha256 | 855f923c09dc0d460b5d7f8ed179fa394d50ef5e1751419c3af65fbe3c430a28 |
+| sha256 | 6e1091780d6350d2a6dda9ccc2e54b28525086923c954b0e1fc51a1060c9c509 |
 
 ## Output Counts
 | Artifact | Rows |

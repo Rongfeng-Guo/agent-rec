@@ -66,7 +66,8 @@ Run `git rev-parse HEAD` after the final status commit for the exact commit.
 - Lightweight LLaMA-Factory/DPO bridge rows with `conversations`, `chosen`,
   `rejected`, `score_delta`, and source metadata.
 - CDPO bridge validator with strict positive `score_delta`, required fields,
-  branch schema checks, and machine-readable validation summaries.
+  branch schema checks, duplicate-id rejection, and machine-readable validation
+  summaries.
 - CDPO dataset manifest builder with file hash, split ids, schema notes, and a
   LLaMA-Factory dataset-info snippet.
 - Closed-loop report generator that audits output consistency and emits a

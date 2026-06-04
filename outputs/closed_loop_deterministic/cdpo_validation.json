@@ -35,5 +35,7 @@
       "behavioral_rollback": 3
     }
   },
+  "unique_id_count": 27,
+  "duplicate_ids": [],
   "input": "outputs\\closed_loop_deterministic\\cdpo_pairs.jsonl"
 }

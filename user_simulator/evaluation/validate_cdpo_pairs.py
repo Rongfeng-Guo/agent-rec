@@ -103,10 +103,12 @@ def summarize(rows: Iterable[dict], errors: list[str]) -> dict:
     by_scenario = Counter()
     by_rejected = Counter()
     by_method_scenario: dict[str, Counter] = defaultdict(Counter)
+    ids = Counter()
 
     for row in rows:
         if "__decode_error__" in row:
             continue
+        ids[row.get("id", "")] += 1
         method = row.get("method", "UNKNOWN")
         scenario = row.get("scenario", "UNKNOWN")
         rejected = row.get("rejected", {}).get("branch", "UNKNOWN")
@@ -118,6 +120,10 @@ def summarize(rows: Iterable[dict], errors: list[str]) -> dict:
             score_deltas.append(float(row.get("score_delta")))
         except (TypeError, ValueError):
             pass
+
+    duplicate_ids = sorted([pair_id for pair_id, count in ids.items() if pair_id and count > 1])
+    for pair_id in duplicate_ids:
+        errors.append(f"duplicate id: {pair_id}")
 
     return {
         "status": "PASS" if not errors else "FAIL",
@@ -133,6 +139,8 @@ def summarize(rows: Iterable[dict], errors: list[str]) -> dict:
         "by_method_scenario": {
             method: dict(sorted(counter.items())) for method, counter in sorted(by_method_scenario.items())
         },
+        "unique_id_count": len(ids),
+        "duplicate_ids": duplicate_ids,
     }
 
 

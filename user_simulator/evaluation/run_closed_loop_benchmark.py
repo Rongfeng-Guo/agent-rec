@@ -339,7 +339,13 @@ def run_branch_rollouts(
                         "chosen_trajectory": branch_trajectories["follow"],
                         "rejected_trajectory": branch_trajectories[rejected],
                         "uplift": chosen_value - rejected_value,
-                        "metadata": {"proxy": "controlled counterfactual rollout proxy", "horizon": horizon},
+                        "metadata": {
+                            "proxy": "controlled counterfactual rollout proxy",
+                            "horizon": horizon,
+                            "critique_point_index": point_index,
+                            "snapshot_turn": point["turn"],
+                            "branch_id": f"{mode}:{scenario.name}:{seed}:{point_index}",
+                        },
                     }
                 )
     return rows, pairs
@@ -400,8 +406,14 @@ def trajectory_to_training_text(rows: list[dict]) -> str:
 def build_cdpo_pair(pair: dict) -> dict:
     critique_list = pair.get("critique", {}).get("critiques", [])
     critique = critique_list[0] if critique_list else {}
+    metadata = pair.get("metadata", {})
+    point_index = metadata.get("critique_point_index", "x")
+    snapshot_turn = metadata.get("snapshot_turn", pair.get("state_snapshot", {}).get("turn", "x"))
     return {
-        "id": f"{pair.get('method')}:{pair.get('scenario')}:{pair.get('seed')}:{pair.get('rejected_branch')}",
+        "id": (
+            f"{pair.get('method')}:{pair.get('scenario')}:{pair.get('seed')}:"
+            f"turn{snapshot_turn}:point{point_index}:{pair.get('rejected_branch')}"
+        ),
         "scenario": pair.get("scenario"),
         "seed": pair.get("seed"),
         "method": pair.get("method"),
@@ -429,7 +441,7 @@ def build_cdpo_pair(pair: dict) -> dict:
         },
         "score_delta": pair.get("uplift"),
         "metadata": {
-            **pair.get("metadata", {}),
+            **metadata,
             "format": "llamafactory_dpo_bridge",
             "source": "CritiqueWorld",
         },

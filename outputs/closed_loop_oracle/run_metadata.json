@@ -1,7 +1,7 @@
 {
   "command": "C:\\Users\\grfpa\\Documents\\Codex\\2026-06-04\\rongfeng-guo-gimo-https-github-com\\GIMO\\user_simulator\\evaluation\\run_closed_loop_benchmark.py --modes none flat structured time_decay critiquescope --scenarios all --seeds 0 1 2 3 4 --max-turns 12 --top-k 5 --parser-mode oracle --output-dir outputs\\closed_loop_oracle",
-  "timestamp_utc": "2026-06-04T08:40:45.266641+00:00",
-  "git_commit": "f9ba0bcf8b095c864189f71090f9820385a9d7de",
+  "timestamp_utc": "2026-06-04T09:54:29.188428+00:00",
+  "git_commit": "5b037c7bdc03bc7ee56d5abf2f3ebdc67e337759",
   "git_branch": "codex/driftaware-structured-memory",
   "python_version": "3.12.3 | packaged by conda-forge | (main, Apr 15 2024, 18:20:11) [MSC v.1938 64 bit (AMD64)]",
   "platform": "Windows-11-10.0.26200-SP0",
