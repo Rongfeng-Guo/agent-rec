@@ -45,6 +45,7 @@ Run `git rev-parse HEAD` after the final status commit for the exact commit.
   - `cdpo_validation.json`
   - `cdpo_dataset_manifest.json`
   - `llamafactory_dataset_info_snippet.json`
+  - `closed_loop_report.md`
   - `summary.csv`
   - `summary.json`
   - `method_summary.csv`
@@ -68,6 +69,8 @@ Run `git rev-parse HEAD` after the final status commit for the exact commit.
   branch schema checks, and machine-readable validation summaries.
 - CDPO dataset manifest builder with file hash, split ids, schema notes, and a
   LLaMA-Factory dataset-info snippet.
+- Closed-loop report generator that audits output consistency and emits a
+  readable Markdown result report.
 - Pytest regression coverage for CritiqueScope and CritiqueWorld.
 - Documentation:
   - `docs/driftaware_gimo.md`
@@ -158,6 +161,8 @@ effectiveness.
 | `python -B -m user_simulator.evaluation.validate_cdpo_pairs --input outputs\closed_loop_deterministic\cdpo_pairs.jsonl --output outputs\closed_loop_deterministic\cdpo_validation.json` | PASS | 27 rows, min score delta 0.066, mean 0.191. |
 | `python -B -m user_simulator.evaluation.build_cdpo_dataset_manifest --input outputs\closed_loop_oracle\cdpo_pairs.jsonl --validation outputs\closed_loop_oracle\cdpo_validation.json --manifest-output outputs\closed_loop_oracle\cdpo_dataset_manifest.json --dataset-info-output outputs\closed_loop_oracle\llamafactory_dataset_info_snippet.json --dev-fraction 0.2` | PASS | 80 rows; train/dev split ids written. |
 | `python -B -m user_simulator.evaluation.build_cdpo_dataset_manifest --input outputs\closed_loop_deterministic\cdpo_pairs.jsonl --validation outputs\closed_loop_deterministic\cdpo_validation.json --manifest-output outputs\closed_loop_deterministic\cdpo_dataset_manifest.json --dataset-info-output outputs\closed_loop_deterministic\llamafactory_dataset_info_snippet.json --dev-fraction 0.2` | PASS | 27 rows; train/dev split ids written. |
+| `python -B -m user_simulator.evaluation.summarize_closed_loop_outputs --output-dir outputs\closed_loop_oracle --report-output outputs\closed_loop_oracle\closed_loop_report.md` | PASS | Report audit PASS. |
+| `python -B -m user_simulator.evaluation.summarize_closed_loop_outputs --output-dir outputs\closed_loop_deterministic --report-output outputs\closed_loop_deterministic\closed_loop_report.md` | PASS | Report audit PASS. |
 | `python -m compileall user_simulator` | PASS | Bytecode side effects cleaned from the worktree. |
 | `git diff --check` | PASS | Only Windows CRLF conversion warnings were reported. |
 

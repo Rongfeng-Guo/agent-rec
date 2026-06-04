@@ -175,6 +175,14 @@ python -B -m user_simulator.evaluation.build_cdpo_dataset_manifest \
   --dataset-info-output outputs/closed_loop_oracle/llamafactory_dataset_info_snippet.json
 ```
 
+Generate a readable audit report:
+
+```bash
+python -B -m user_simulator.evaluation.summarize_closed_loop_outputs \
+  --output-dir outputs/closed_loop_oracle \
+  --report-output outputs/closed_loop_oracle/closed_loop_report.md
+```
+
 ## Output Files
 
 Each run writes:
@@ -187,6 +195,7 @@ cdpo_pairs.jsonl
 cdpo_validation.json
 cdpo_dataset_manifest.json
 llamafactory_dataset_info_snippet.json
+closed_loop_report.md
 summary.csv
 summary.json
 method_summary.csv

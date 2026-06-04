@@ -1,6 +1,7 @@
 import json
 
 from user_simulator.evaluation.build_cdpo_dataset_manifest import build_manifest, build_llamafactory_snippet
+from user_simulator.evaluation.summarize_closed_loop_outputs import audit_output_dir, build_report
 from user_simulator.evaluation.run_closed_loop_benchmark import (
     apply_critiques,
     build_cdpo_pair,
@@ -310,6 +311,22 @@ def test_cdpo_dataset_manifest_rejects_invalid_pairs(tmp_path):
         assert "validation failed" in str(exc)
     else:
         raise AssertionError("invalid CDPO pairs should not build a manifest")
+
+
+def test_closed_loop_report_audits_valid_output_dir():
+    output_dir = __import__("pathlib").Path("outputs/closed_loop_oracle")
+    audit = audit_output_dir(output_dir)
+    assert audit["status"] == "PASS"
+    report = build_report(output_dir, audit)
+    assert "CritiqueWorld Closed-Loop Report" in report
+    assert "controlled counterfactual rollout proxy" in report
+    assert "closed_loop_oracle_cdpo" in report
+
+
+def test_closed_loop_report_audit_fails_on_missing_files(tmp_path):
+    audit = audit_output_dir(tmp_path)
+    assert audit["status"] == "FAIL"
+    assert any("missing" in error for error in audit["errors"])
 
 
 def test_candidate_coverage_error_flags_missing_targets():
