@@ -1,6 +1,6 @@
 {
-  "closed_loop_oracle_cdpo": {
-    "file_name": "outputs/closed_loop_oracle/cdpo_pairs.jsonl",
+  "closed_loop_oracle_cdpo_train": {
+    "file_name": "outputs/closed_loop_oracle/cdpo_train.jsonl",
     "formatting": "sharegpt",
     "columns": {
       "messages": "conversations",
@@ -11,8 +11,26 @@
       "source": "CritiqueWorld",
       "status": "SMOKE_TEST_ONLY",
       "proxy": "controlled counterfactual rollout proxy",
-      "row_count": 80,
-      "manifest": "cdpo_dataset_manifest.json"
+      "row_count": 64,
+      "manifest": "cdpo_dataset_manifest.json",
+      "split": "train"
+    }
+  },
+  "closed_loop_oracle_cdpo_dev": {
+    "file_name": "outputs/closed_loop_oracle/cdpo_dev.jsonl",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations",
+      "chosen": "chosen",
+      "rejected": "rejected"
+    },
+    "metadata": {
+      "source": "CritiqueWorld",
+      "status": "SMOKE_TEST_ONLY",
+      "proxy": "controlled counterfactual rollout proxy",
+      "row_count": 16,
+      "manifest": "cdpo_dataset_manifest.json",
+      "split": "dev"
     }
   }
 }

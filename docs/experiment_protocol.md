@@ -126,12 +126,16 @@ python -B -m user_simulator.evaluation.build_cdpo_dataset_manifest \
   --input outputs/closed_loop_oracle/cdpo_pairs.jsonl \
   --validation outputs/closed_loop_oracle/cdpo_validation.json \
   --manifest-output outputs/closed_loop_oracle/cdpo_dataset_manifest.json \
-  --dataset-info-output outputs/closed_loop_oracle/llamafactory_dataset_info_snippet.json
+  --dataset-info-output outputs/closed_loop_oracle/llamafactory_dataset_info_snippet.json \
+  --train-output outputs/closed_loop_oracle/cdpo_train.jsonl \
+  --dev-output outputs/closed_loop_oracle/cdpo_dev.jsonl
 python -B -m user_simulator.evaluation.build_cdpo_dataset_manifest \
   --input outputs/closed_loop_deterministic/cdpo_pairs.jsonl \
   --validation outputs/closed_loop_deterministic/cdpo_validation.json \
   --manifest-output outputs/closed_loop_deterministic/cdpo_dataset_manifest.json \
-  --dataset-info-output outputs/closed_loop_deterministic/llamafactory_dataset_info_snippet.json
+  --dataset-info-output outputs/closed_loop_deterministic/llamafactory_dataset_info_snippet.json \
+  --train-output outputs/closed_loop_deterministic/cdpo_train.jsonl \
+  --dev-output outputs/closed_loop_deterministic/cdpo_dev.jsonl
 python -B -m user_simulator.evaluation.summarize_closed_loop_outputs \
   --output-dir outputs/closed_loop_oracle \
   --report-output outputs/closed_loop_oracle/closed_loop_report.md
@@ -227,6 +231,8 @@ outputs/closed_loop_oracle/
   cdpo_validation.json
   cdpo_dataset_manifest.json
   llamafactory_dataset_info_snippet.json
+  cdpo_train.jsonl
+  cdpo_dev.jsonl
   closed_loop_report.md
   summary.csv
   summary.json

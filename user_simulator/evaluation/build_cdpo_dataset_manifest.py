@@ -59,6 +59,42 @@ def split_ids(rows: Iterable[dict], dev_fraction: float) -> dict:
     return {"train": train, "dev": dev}
 
 
+def materialize_splits(rows: List[dict], splits: dict, train_output: Path, dev_output: Path) -> dict:
+    by_id = {row["id"]: row for row in rows}
+    train_ids = splits["train"]
+    dev_ids = splits["dev"]
+    missing = [pair_id for pair_id in [*train_ids, *dev_ids] if pair_id not in by_id]
+    if missing:
+        raise ValueError(f"Split ids missing from input rows: {missing[:5]}")
+
+    overlap = sorted(set(train_ids) & set(dev_ids))
+    if overlap:
+        raise ValueError(f"Train/dev split overlap detected: {overlap[:5]}")
+
+    if len(train_ids) != len(set(train_ids)) or len(dev_ids) != len(set(dev_ids)):
+        raise ValueError("Duplicate ids detected inside train/dev split")
+
+    train_rows = [by_id[pair_id] for pair_id in train_ids]
+    dev_rows = [by_id[pair_id] for pair_id in dev_ids]
+    write_jsonl(train_output, train_rows)
+    write_jsonl(dev_output, dev_rows)
+    return {
+        "train_file": str(train_output),
+        "dev_file": str(dev_output),
+        "train_count": len(train_rows),
+        "dev_count": len(dev_rows),
+        "train_sha256": file_sha256(train_output),
+        "dev_sha256": file_sha256(dev_output),
+    }
+
+
+def write_jsonl(path: Path, rows: Iterable[dict]):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as file:
+        for row in rows:
+            file.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
 def build_manifest(input_path: Path, validation_path: Path | None, dev_fraction: float) -> dict:
     validation = validate_file(input_path)
     if validation["status"] != "PASS":
@@ -97,6 +133,10 @@ def build_manifest(input_path: Path, validation_path: Path | None, dev_fraction:
             "dev_count": len(splits["dev"]),
             "train_ids": splits["train"],
             "dev_ids": splits["dev"],
+            "train_file": None,
+            "dev_file": None,
+            "train_sha256": None,
+            "dev_sha256": None,
         },
         "schema": {
             "format": "llamafactory_dpo_bridge",
@@ -147,19 +187,68 @@ def build_llamafactory_snippet(manifest: dict, input_path: Path) -> dict:
     }
 
 
+def build_split_dataset_info_snippet(manifest: dict) -> dict:
+    dataset_name = manifest["dataset_name"]
+    splits = manifest.get("splits", {})
+    return {
+        f"{dataset_name}_train": {
+            "file_name": str(splits.get("train_file", "")).replace("\\", "/"),
+            "formatting": "sharegpt",
+            "columns": {"messages": "conversations", "chosen": "chosen", "rejected": "rejected"},
+            "metadata": {
+                "source": manifest["source"],
+                "status": manifest["status"],
+                "proxy": manifest["proxy"],
+                "row_count": splits.get("train_count"),
+                "manifest": "cdpo_dataset_manifest.json",
+                "split": "train",
+            },
+        },
+        f"{dataset_name}_dev": {
+            "file_name": str(splits.get("dev_file", "")).replace("\\", "/"),
+            "formatting": "sharegpt",
+            "columns": {"messages": "conversations", "chosen": "chosen", "rejected": "rejected"},
+            "metadata": {
+                "source": manifest["source"],
+                "status": manifest["status"],
+                "proxy": manifest["proxy"],
+                "row_count": splits.get("dev_count"),
+                "manifest": "cdpo_dataset_manifest.json",
+                "split": "dev",
+            },
+        },
+    }
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", required=True)
     parser.add_argument("--validation")
     parser.add_argument("--manifest-output", required=True)
     parser.add_argument("--dataset-info-output", required=True)
+    parser.add_argument("--train-output")
+    parser.add_argument("--dev-output")
     parser.add_argument("--dev-fraction", type=float, default=0.2)
     args = parser.parse_args()
 
     input_path = Path(args.input)
     validation_path = Path(args.validation) if args.validation else None
     manifest = build_manifest(input_path, validation_path, args.dev_fraction)
-    snippet = build_llamafactory_snippet(manifest, input_path)
+    rows = read_jsonl(input_path)
+
+    if args.train_output or args.dev_output:
+        if not args.train_output or not args.dev_output:
+            raise SystemExit("--train-output and --dev-output must be provided together")
+        split_info = materialize_splits(
+            rows,
+            {"train": manifest["splits"]["train_ids"], "dev": manifest["splits"]["dev_ids"]},
+            Path(args.train_output),
+            Path(args.dev_output),
+        )
+        manifest["splits"].update(split_info)
+        snippet = build_split_dataset_info_snippet(manifest)
+    else:
+        snippet = build_llamafactory_snippet(manifest, input_path)
 
     manifest_path = Path(args.manifest_output)
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
@@ -168,7 +257,19 @@ def main():
     snippet_path.parent.mkdir(parents=True, exist_ok=True)
     snippet_path.write_text(json.dumps(snippet, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
-    print(json.dumps({"status": "ok", "manifest": str(manifest_path), "dataset_info": str(snippet_path), "rows": manifest["row_count"]}, indent=2))
+    print(
+        json.dumps(
+            {
+                "status": "ok",
+                "manifest": str(manifest_path),
+                "dataset_info": str(snippet_path),
+                "rows": manifest["row_count"],
+                "train_file": manifest["splits"].get("train_file"),
+                "dev_file": manifest["splits"].get("dev_file"),
+            },
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":

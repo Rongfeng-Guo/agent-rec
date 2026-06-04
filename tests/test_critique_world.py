@@ -1,6 +1,11 @@
 import json
 
-from user_simulator.evaluation.build_cdpo_dataset_manifest import build_manifest, build_llamafactory_snippet
+from user_simulator.evaluation.build_cdpo_dataset_manifest import (
+    build_manifest,
+    build_llamafactory_snippet,
+    build_split_dataset_info_snippet,
+    materialize_splits,
+)
 from user_simulator.evaluation.summarize_closed_loop_outputs import audit_output_dir, build_report
 from user_simulator.evaluation.run_closed_loop_benchmark import (
     apply_critiques,
@@ -324,6 +329,52 @@ def test_cdpo_dataset_manifest_summarizes_valid_pairs(tmp_path):
     assert manifest["splits"]["train_count"] + manifest["splits"]["dev_count"] == manifest["row_count"]
     assert manifest["schema"]["score_delta"] == "strictly_positive"
     assert manifest["dataset_name"] in snippet
+
+
+def test_cdpo_dataset_materializes_train_dev_splits(tmp_path):
+    from user_simulator.evaluation.run_closed_loop_benchmark import main
+    import sys
+
+    old_argv = sys.argv
+    sys.argv = [
+        "run_closed_loop_benchmark",
+        "--modes",
+        "critiquescope",
+        "--scenarios",
+        "temporary_fatigue",
+        "--seeds",
+        "0",
+        "--max-turns",
+        "4",
+        "--top-k",
+        "5",
+        "--parser-mode",
+        "oracle",
+        "--output-dir",
+        str(tmp_path),
+    ]
+    try:
+        main()
+    finally:
+        sys.argv = old_argv
+
+    manifest = build_manifest(tmp_path / "cdpo_pairs.jsonl", None, dev_fraction=0.5)
+    rows = [json.loads(line) for line in (tmp_path / "cdpo_pairs.jsonl").read_text(encoding="utf-8").splitlines()]
+    split_info = materialize_splits(
+        rows,
+        {"train": manifest["splits"]["train_ids"], "dev": manifest["splits"]["dev_ids"]},
+        tmp_path / "cdpo_train.jsonl",
+        tmp_path / "cdpo_dev.jsonl",
+    )
+    manifest["splits"].update(split_info)
+    snippet = build_split_dataset_info_snippet(manifest)
+    train_ids = {json.loads(line)["id"] for line in (tmp_path / "cdpo_train.jsonl").read_text(encoding="utf-8").splitlines()}
+    dev_ids = {json.loads(line)["id"] for line in (tmp_path / "cdpo_dev.jsonl").read_text(encoding="utf-8").splitlines()}
+
+    assert split_info["train_count"] + split_info["dev_count"] == manifest["row_count"]
+    assert not (train_ids & dev_ids)
+    assert f"{manifest['dataset_name']}_train" in snippet
+    assert f"{manifest['dataset_name']}_dev" in snippet
 
 
 def test_cdpo_dataset_manifest_rejects_invalid_pairs(tmp_path):

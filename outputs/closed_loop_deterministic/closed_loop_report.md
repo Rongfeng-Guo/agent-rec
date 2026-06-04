@@ -26,6 +26,8 @@ This is a controlled counterfactual rollout proxy report. It is not human evalua
 | branch_rows | 1710 |
 | dpo_pairs | 27 |
 | cdpo_pairs | 27 |
+| cdpo_train | 22 |
+| cdpo_dev | 5 |
 
 ## Method Summary
 | Method | CumulativeUtility_mean | ClickRate_mean | InstructionUplift@H_mean | OverCorrectionRegret@H_mean | ScopeClassificationAccuracy_mean | parser_scope_error_mean | memory_update_error_mean | candidate_coverage_error_mean |

@@ -3,8 +3,8 @@
   "source": "CritiqueWorld",
   "status": "SMOKE_TEST_ONLY",
   "proxy": "controlled counterfactual rollout proxy",
-  "created_at_utc": "2026-06-04T09:55:08.816767+00:00",
-  "git_commit": "5b037c7bdc03bc7ee56d5abf2f3ebdc67e337759",
+  "created_at_utc": "2026-06-04T10:07:55.970269+00:00",
+  "git_commit": "f031ab858ece1fee27be1193101fd80f1b32eb7f",
   "git_branch": "codex/driftaware-structured-memory",
   "input_file": "outputs\\closed_loop_oracle\\cdpo_pairs.jsonl",
   "input_sha256": "66814677b59e039aeccaa7da91603ff2a497df43f03c08417a0165e2de464b4a",
@@ -119,7 +119,11 @@
       "critiquescope:temporary_fatigue:0:turn2:point0:over_apply",
       "structured:temporary_fatigue:0:turn2:point0:ignore",
       "structured:temporary_fatigue:2:turn2:point0:over_apply"
-    ]
+    ],
+    "train_file": "outputs\\closed_loop_oracle\\cdpo_train.jsonl",
+    "dev_file": "outputs\\closed_loop_oracle\\cdpo_dev.jsonl",
+    "train_sha256": "1fb154183885fe5b201e1a66d8a2e1d4a24805f01accbd7548e515f15df26452",
+    "dev_sha256": "68cfb92912099e9dfa183c8f69645f7871b4a037603a50d32016c196d0484568"
   },
   "schema": {
     "format": "llamafactory_dpo_bridge",

@@ -6,3 +6,7 @@
 - Trajectories: `1044` rows
 - Branch rollouts: `1710` rows
 - DPO/CDPO pairs: `27` rows
+- CDPO train/dev splits: `cdpo_train.jsonl`, `cdpo_dev.jsonl`
+- CDPO dataset manifest: `cdpo_dataset_manifest.json`
+- LLaMA-Factory dataset-info snippet: `llamafactory_dataset_info_snippet.json`
+- Closed-loop report: `closed_loop_report.md`

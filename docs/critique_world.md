@@ -173,7 +173,9 @@ python -B -m user_simulator.evaluation.build_cdpo_dataset_manifest \
   --input outputs/closed_loop_oracle/cdpo_pairs.jsonl \
   --validation outputs/closed_loop_oracle/cdpo_validation.json \
   --manifest-output outputs/closed_loop_oracle/cdpo_dataset_manifest.json \
-  --dataset-info-output outputs/closed_loop_oracle/llamafactory_dataset_info_snippet.json
+  --dataset-info-output outputs/closed_loop_oracle/llamafactory_dataset_info_snippet.json \
+  --train-output outputs/closed_loop_oracle/cdpo_train.jsonl \
+  --dev-output outputs/closed_loop_oracle/cdpo_dev.jsonl
 ```
 
 Generate a readable audit report:
@@ -196,6 +198,8 @@ cdpo_pairs.jsonl
 cdpo_validation.json
 cdpo_dataset_manifest.json
 llamafactory_dataset_info_snippet.json
+cdpo_train.jsonl
+cdpo_dev.jsonl
 closed_loop_report.md
 summary.csv
 summary.json
@@ -214,9 +218,10 @@ but it does not itself run SFT, GPE, HAP, or CDPO. The intended bridge is:
 1. use CritiqueWorld to validate scope-aware memory behavior;
 2. export `dpo_pairs.jsonl`;
 3. validate `cdpo_pairs.jsonl` and inspect `cdpo_dataset_manifest.json`;
-4. merge `llamafactory_dataset_info_snippet.json` into the selected training
+4. use `cdpo_train.jsonl` and `cdpo_dev.jsonl` as the materialized split files;
+5. merge `llamafactory_dataset_info_snippet.json` into the selected training
    configuration after deciding the final data schema;
-5. run SFT/GPE/HAP/CDPO only after model weights, dataset paths, GPU resources,
+6. run SFT/GPE/HAP/CDPO only after model weights, dataset paths, GPU resources,
    and API endpoints are configured.
 
 ## Limitations and Next Steps

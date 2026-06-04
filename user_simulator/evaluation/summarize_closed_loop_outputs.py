@@ -57,6 +57,8 @@ def audit_output_dir(output_dir: Path) -> dict:
         "cdpo_validation.json",
         "cdpo_dataset_manifest.json",
         "llamafactory_dataset_info_snippet.json",
+        "cdpo_train.jsonl",
+        "cdpo_dev.jsonl",
     ]
     errors = []
     for name in required:
@@ -77,6 +79,8 @@ def audit_output_dir(output_dir: Path) -> dict:
         "branch_rows": count_jsonl(output_dir / "branch_rollouts.jsonl"),
         "dpo_pairs": count_jsonl(output_dir / "dpo_pairs.jsonl"),
         "cdpo_pairs": count_jsonl(output_dir / "cdpo_pairs.jsonl"),
+        "cdpo_train": count_jsonl(output_dir / "cdpo_train.jsonl"),
+        "cdpo_dev": count_jsonl(output_dir / "cdpo_dev.jsonl"),
     }
 
     if validation.get("status") != "PASS":
@@ -93,6 +97,13 @@ def audit_output_dir(output_dir: Path) -> dict:
         errors.append("metadata dpo_pair_count does not match dpo_pairs.jsonl")
     if metadata.get("cdpo_pair_count") != counts["cdpo_pairs"]:
         errors.append("metadata cdpo_pair_count does not match cdpo_pairs.jsonl")
+    splits = manifest.get("splits", {})
+    if splits.get("train_count") != counts["cdpo_train"]:
+        errors.append("manifest train_count does not match cdpo_train.jsonl")
+    if splits.get("dev_count") != counts["cdpo_dev"]:
+        errors.append("manifest dev_count does not match cdpo_dev.jsonl")
+    if counts["cdpo_train"] + counts["cdpo_dev"] != counts["cdpo_pairs"]:
+        errors.append("train/dev row counts do not sum to cdpo pair count")
 
     return {
         "status": "PASS" if not errors else "FAIL",
