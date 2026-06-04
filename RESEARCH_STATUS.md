@@ -6,7 +6,7 @@
 
 ## Current HEAD
 
-`2d0bf654b4f4af607e1635b72a5cb73012d1f74a`
+`5d2dd1c7b4c91c57ee73f5dd8fbc99fc09d3c3d4`
 
 ## Completed Commits
 
@@ -14,6 +14,7 @@
 - `bfd6be6` Add scope-aware critique memory
 - `9207797` Add critique uplift preference pair builder
 - `2d0bf65` infra: add reproducible memory baseline runner
+- `5d2dd1c` docs: record research status and smoke results
 
 ## Completed Modules
 
