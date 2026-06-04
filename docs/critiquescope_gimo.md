@@ -126,6 +126,21 @@ Run without API keys:
 python -B -m user_simulator.evaluation.critique_scope_eval
 ```
 
+Parse feedback with the deterministic fallback:
+
+```bash
+python -B -m user_simulator.evaluation.critique_parser \
+  --backend deterministic \
+  --output outputs/parser_smoke/parsed.jsonl
+```
+
+Normalize existing rollout utilities and build uplift pairs:
+
+```bash
+python -B -m user_simulator.evaluation.critique_rollout_adapter \
+  --output-dir outputs/rollout_adapter_smoke
+```
+
 The default benchmark includes:
 
 1. Temporary UFC fatigue.
@@ -175,6 +190,7 @@ feed follow/ignore/over-apply rollouts into GIMO/CDPO preference construction.
 
 1. Add an LLM critique parser that emits the schema above.
 2. Generate follow/ignore/over-apply rollouts from real GIMO agents.
-3. Convert uplift-positive branches into CDPO pairs with
+3. Feed real rollout JSONL into `critique_rollout_adapter.py`.
+4. Convert uplift-positive branches into CDPO pairs with
    `user_simulator.evaluation.critique_uplift_pairs`.
-4. Evaluate transfer under multiple user simulators and small human checks.
+5. Evaluate transfer under multiple user simulators and small human checks.

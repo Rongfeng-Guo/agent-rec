@@ -6,6 +6,8 @@ from user_simulator.evaluation.critique_scope_eval import (
     evaluate_flat_memory,
 )
 from user_simulator.evaluation.critique_uplift_pairs import build_pairs
+from user_simulator.evaluation.critique_parser import parse_deterministic
+from user_simulator.evaluation.critique_rollout_adapter import load_rollouts
 from user_simulator.state.critique_scope import CritiqueScopeMemory
 from user_simulator.state.critique_scope_memory import CritiqueScopeMemory as CompatMemory
 
@@ -75,3 +77,24 @@ def test_user_agent_env_supports_critiquescope_mode():
 
 def test_compatibility_import_path():
     assert CompatMemory is CritiqueScopeMemory
+
+
+def test_deterministic_parser_outputs_schema():
+    critiques = parse_deterministic("I have seen too much UFC lately.")
+    assert critiques
+    assert critiques[0]["operation"] == "attenuate"
+    assert critiques[0]["temporal_scope"] == "session"
+
+
+def test_deterministic_parser_detects_genuine_drift():
+    critiques = parse_deterministic("I do not want Windows anymore. Going forward, prioritize Mac laptops.")
+    operations = {critique["operation"] for critique in critiques}
+    targets = {critique["target"] for critique in critiques}
+    assert {"rollback", "promote"} <= operations
+    assert {"Windows", "Mac laptops"} <= targets
+
+
+def test_rollout_adapter_loads_default_scenarios():
+    scenarios = load_rollouts(None)
+    assert len(scenarios) >= 6
+    assert all("follow_value" in scenario for scenario in scenarios)

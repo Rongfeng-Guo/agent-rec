@@ -31,6 +31,9 @@ Run `git rev-parse HEAD` for the exact current commit after status-file edits.
   - Genuine Drift
   - Behavioral Rollback
 - Counterfactual uplift preference-pair builder.
+- Critique parser with deterministic and optional OpenAI-compatible backend.
+- Rollout adapter that normalizes follow/ignore/over-apply utilities and emits
+  uplift preference pairs.
 - Unified baseline runner for `none`, `flat`, `structured`, `time_decay`, and
   `critiquescope`.
 - CSV/JSON/JSONL/metadata result output.
@@ -53,8 +56,10 @@ Run `git rev-parse HEAD` for the exact current commit after status-file edits.
 | `nvidia-smi` | PASS | RTX 4050 visible; not needed for Tier A. |
 | `python -B -m user_simulator.evaluation.drift_memory_eval` | PASS | Deterministic DriftAware smoke result printed. |
 | `python -B -m user_simulator.evaluation.critique_scope_eval` | PASS | Six deterministic critique scenarios evaluated. |
+| `python -B -m user_simulator.evaluation.critique_parser --backend deterministic --output outputs\parser_smoke\parsed.jsonl` | PASS | Five feedback utterances parsed with deterministic fallback. |
+| `python -B -m user_simulator.evaluation.critique_rollout_adapter --output-dir outputs\rollout_adapter_smoke` | PASS | Six scenarios normalized and 12 uplift pairs written. |
 | `python -B -m user_simulator.evaluation.run_memory_baselines --modes none flat structured time_decay critiquescope --scenario-set deterministic --seeds 0 1 2 3 4 --output-dir outputs\memory_baselines` | PASS | 150 rows written. |
-| `pytest -q` | FAIL then PASS | First failed by collecting LLaMA-Factory tests without `transformers`, `accelerate`, and `datasets`; added `pytest.ini`, then 10 tests passed. |
+| `pytest -q` | FAIL then PASS | First failed by collecting LLaMA-Factory tests without `transformers`, `accelerate`, and `datasets`; added `pytest.ini`, then 13 tests passed. |
 | `python -m compileall user_simulator` | PASS | Bytecode side effects cleaned/restored. |
 | `git diff --check` | PASS | No whitespace errors. |
 
@@ -69,6 +74,12 @@ outputs/memory_baselines/
   runs.jsonl
   summary.csv
   summary.json
+outputs/parser_smoke/
+  parsed.jsonl
+outputs/rollout_adapter_smoke/
+  adapter_metadata.json
+  critique_pairs.jsonl
+  normalized_scenarios.jsonl
 ```
 
 Run metadata:
@@ -104,7 +115,7 @@ evaluation results.
 | SFT | BLOCKED | Needs model weights, configured dataset paths, dependencies, and GPU training time. |
 | GPE/HAP | BLOCKED | Needs OpenAI-compatible model endpoint and rollout/config inputs. |
 | CDPO | BLOCKED | Needs model weights, preference data, LLaMA-Factory dependencies, and GPU. |
-| Real AILO simulator rollout with CritiqueScope | PENDING | Requires deciding parser/model backend and integrating real recommender outputs. |
+| Real AILO simulator rollout with CritiqueScope | PENDING | Parser and rollout adapter exist; still needs real recommender outputs. |
 
 ## Blockers
 
@@ -117,9 +128,9 @@ evaluation results.
 
 ## Next Priorities
 
-1. Add an LLM critique parser that emits the CritiqueScope schema.
-2. Add a real GIMO rollout adapter that records follow/ignore/over-apply branches.
-3. Convert real rollouts into CDPO pairs with `critique_uplift_pairs.py`.
+1. Connect the optional OpenAI-compatible parser to a configured model endpoint.
+2. Add a real GIMO rollout collector that records follow/ignore/over-apply branches.
+3. Feed real rollout JSONL into `critique_rollout_adapter.py`.
 4. Add a small prompt-based IRA smoke runner once `main.sh` or equivalent entry is restored.
 5. Add aggregate tables and LaTeX export for deterministic results.
 6. Add noisy/ambiguous critique scenarios.

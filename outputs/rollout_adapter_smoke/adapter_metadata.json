@@ -1,0 +1,6 @@
+{
+  "status": "SMOKE_TEST_ONLY",
+  "input": "DEFAULT_SCENARIOS",
+  "scenario_count": 6,
+  "pair_count": 12
+}

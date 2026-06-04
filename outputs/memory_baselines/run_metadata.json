@@ -1,7 +1,7 @@
 {
   "command": "C:\\Users\\grfpa\\Documents\\Codex\\2026-06-04\\rongfeng-guo-gimo-https-github-com\\GIMO\\user_simulator\\evaluation\\run_memory_baselines.py --modes none flat structured time_decay critiquescope --scenario-set deterministic --seeds 0 1 2 3 4 --output-dir outputs\\memory_baselines",
-  "timestamp_utc": "2026-06-04T05:51:23.024075+00:00",
-  "git_commit": "2d0bf654b4f4af607e1635b72a5cb73012d1f74a",
+  "timestamp_utc": "2026-06-04T06:00:18.050066+00:00",
+  "git_commit": "d733e3b0acc5e0d257d718107b4a0067fb80f9a5",
   "git_branch": "codex/driftaware-structured-memory",
   "python_version": "3.12.3 | packaged by conda-forge | (main, Apr 15 2024, 18:20:11) [MSC v.1938 64 bit (AMD64)]",
   "platform": "Windows-11-10.0.26200-SP0",

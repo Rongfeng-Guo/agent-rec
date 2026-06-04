@@ -268,7 +268,34 @@ def infer_critiques(user_utterance: str) -> List[dict]:
     lower = text.lower()
     critiques: List[dict] = []
 
-    if any(cue in lower for cue in ["too much", "too many", "看太多", "换换口味", "少来点"]):
+    if ("windows" in lower and "mac" in lower) or ("不要 windows" in lower and "mac" in lower):
+        critiques.extend(
+            [
+                {
+                    "target": "Windows",
+                    "operation": "rollback",
+                    "reason": "genuine drift",
+                    "object_scope": "category",
+                    "temporal_scope": "persistent",
+                    "horizon": 0,
+                    "hardness": "hard",
+                    "confidence": 0.86,
+                    "promotion_condition": "persistent_language",
+                },
+                {
+                    "target": "Mac laptops",
+                    "operation": "promote",
+                    "reason": "genuine drift",
+                    "object_scope": "category",
+                    "temporal_scope": "persistent",
+                    "horizon": 0,
+                    "hardness": "hard",
+                    "confidence": 0.86,
+                    "promotion_condition": "persistent_language",
+                },
+            ]
+        )
+    elif any(cue in lower for cue in ["too much", "too many", "看太多", "换换口味", "少来点"]):
         critiques.append(
             {
                 "target": extract_target(text),

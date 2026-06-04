@@ -53,6 +53,11 @@ across seeds.
 ```bash
 python -B -m user_simulator.evaluation.drift_memory_eval
 python -B -m user_simulator.evaluation.critique_scope_eval
+python -B -m user_simulator.evaluation.critique_parser \
+  --backend deterministic \
+  --output outputs/parser_smoke/parsed.jsonl
+python -B -m user_simulator.evaluation.critique_rollout_adapter \
+  --output-dir outputs/rollout_adapter_smoke
 python -B -m user_simulator.evaluation.run_memory_baselines \
   --modes none flat structured time_decay critiquescope \
   --scenario-set deterministic \
@@ -70,6 +75,41 @@ training data paths:
 cd LLaMA-Factory
 bash gimo/{dataset}/sft/sft.sh
 bash gimo/{dataset}/gimo/adpo_v1_sample1.sh
+```
+
+Optional parser backend for an OpenAI-compatible endpoint:
+
+```bash
+python -B -m user_simulator.evaluation.critique_parser \
+  --backend openai \
+  --base-url "$OPENAI_BASE_URL" \
+  --api-key "$OPENAI_API_KEY" \
+  --model "$OPENAI_MODEL" \
+  --input utterances.txt \
+  --output outputs/parser_runs/parsed.jsonl
+```
+
+Real rollout adapter input should be JSONL with:
+
+```json
+{
+  "id": "scenario_id",
+  "critique_type": "Temporary Fatigue",
+  "utterance": "...",
+  "critiques": [],
+  "follow_value": [0.7, 0.8],
+  "ignore_value": [0.2, 0.3],
+  "over_apply_value": [0.6, 0.1],
+  "post_expiry_items": []
+}
+```
+
+Then run:
+
+```bash
+python -B -m user_simulator.evaluation.critique_rollout_adapter \
+  --input real_rollouts.jsonl \
+  --output-dir outputs/real_rollout_adapter
 ```
 
 ## Result Paths
