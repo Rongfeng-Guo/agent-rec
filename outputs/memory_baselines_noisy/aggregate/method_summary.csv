@@ -1,0 +1,6 @@
+method,n,instruction_satisfaction_mean,memory_contamination_rate_mean,over_correction_rate_mean,over_correction_regret_mean,promotion_precision_mean,promotion_recall_mean,rollback_accuracy_mean,instruction_uplift_mean,over_application_regret_mean,token_cost_mean
+critiquescope,15,1.0,0.0,0.0,0.0,1.0,1.0,1.0,0.94,0.44799999999999995,25.8
+flat,15,1.0,0.6,0.2,0.16999999999999998,0.4,1.0,1.0,0.94,0.44799999999999995,31.2
+none,15,0.0,0.0,0.0,0.0,1.0,0.6,1.0,0.0,0.0,0.0
+structured,15,1.0,0.3,0.2,0.16999999999999998,0.7,1.0,1.0,0.94,0.44799999999999995,24.2
+time_decay,15,1.0,0.0,0.0,0.0,1.0,1.0,1.0,0.94,0.44799999999999995,25.8
