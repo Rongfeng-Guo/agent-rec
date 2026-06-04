@@ -1,5 +1,6 @@
 import json
 
+from user_simulator.evaluation.build_cdpo_dataset_manifest import build_manifest, build_llamafactory_snippet
 from user_simulator.evaluation.run_closed_loop_benchmark import (
     apply_critiques,
     build_cdpo_pair,
@@ -258,6 +259,57 @@ def test_cdpo_validator_rejects_non_positive_delta(tmp_path):
     result = validate_file(path)
     assert result["status"] == "FAIL"
     assert any("strictly positive" in error for error in result["errors"])
+
+
+def test_cdpo_dataset_manifest_summarizes_valid_pairs(tmp_path):
+    from user_simulator.evaluation.run_closed_loop_benchmark import main
+    import sys
+
+    old_argv = sys.argv
+    sys.argv = [
+        "run_closed_loop_benchmark",
+        "--modes",
+        "critiquescope",
+        "--scenarios",
+        "temporary_fatigue",
+        "--seeds",
+        "0",
+        "--max-turns",
+        "4",
+        "--top-k",
+        "5",
+        "--parser-mode",
+        "oracle",
+        "--output-dir",
+        str(tmp_path),
+    ]
+    try:
+        main()
+    finally:
+        sys.argv = old_argv
+
+    validation = validate_file(tmp_path / "cdpo_pairs.jsonl")
+    validation_path = tmp_path / "cdpo_validation.json"
+    validation_path.write_text(json.dumps(validation), encoding="utf-8")
+    manifest = build_manifest(tmp_path / "cdpo_pairs.jsonl", validation_path, dev_fraction=0.5)
+    snippet = build_llamafactory_snippet(manifest, tmp_path / "cdpo_pairs.jsonl")
+
+    assert manifest["validation_status"] == "PASS"
+    assert manifest["row_count"] == validation["rows"]
+    assert manifest["splits"]["train_count"] + manifest["splits"]["dev_count"] == manifest["row_count"]
+    assert manifest["schema"]["score_delta"] == "strictly_positive"
+    assert manifest["dataset_name"] in snippet
+
+
+def test_cdpo_dataset_manifest_rejects_invalid_pairs(tmp_path):
+    path = tmp_path / "bad.jsonl"
+    path.write_text("{\"id\":\"bad\"}\n", encoding="utf-8")
+    try:
+        build_manifest(path, None, dev_fraction=0.2)
+    except ValueError as exc:
+        assert "validation failed" in str(exc)
+    else:
+        raise AssertionError("invalid CDPO pairs should not build a manifest")
 
 
 def test_candidate_coverage_error_flags_missing_targets():

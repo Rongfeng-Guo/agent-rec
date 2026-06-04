@@ -1,0 +1,18 @@
+{
+  "closed_loop_deterministic_cdpo": {
+    "file_name": "outputs/closed_loop_deterministic/cdpo_pairs.jsonl",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations",
+      "chosen": "chosen",
+      "rejected": "rejected"
+    },
+    "metadata": {
+      "source": "CritiqueWorld",
+      "status": "SMOKE_TEST_ONLY",
+      "proxy": "controlled counterfactual rollout proxy",
+      "row_count": 27,
+      "manifest": "cdpo_dataset_manifest.json"
+    }
+  }
+}

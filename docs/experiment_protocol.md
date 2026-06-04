@@ -122,6 +122,16 @@ python -B -m user_simulator.evaluation.validate_cdpo_pairs \
 python -B -m user_simulator.evaluation.validate_cdpo_pairs \
   --input outputs/closed_loop_deterministic/cdpo_pairs.jsonl \
   --output outputs/closed_loop_deterministic/cdpo_validation.json
+python -B -m user_simulator.evaluation.build_cdpo_dataset_manifest \
+  --input outputs/closed_loop_oracle/cdpo_pairs.jsonl \
+  --validation outputs/closed_loop_oracle/cdpo_validation.json \
+  --manifest-output outputs/closed_loop_oracle/cdpo_dataset_manifest.json \
+  --dataset-info-output outputs/closed_loop_oracle/llamafactory_dataset_info_snippet.json
+python -B -m user_simulator.evaluation.build_cdpo_dataset_manifest \
+  --input outputs/closed_loop_deterministic/cdpo_pairs.jsonl \
+  --validation outputs/closed_loop_deterministic/cdpo_validation.json \
+  --manifest-output outputs/closed_loop_deterministic/cdpo_dataset_manifest.json \
+  --dataset-info-output outputs/closed_loop_deterministic/llamafactory_dataset_info_snippet.json
 ```
 
 ## Full Run
@@ -209,6 +219,8 @@ outputs/closed_loop_oracle/
   dpo_pairs.jsonl
   cdpo_pairs.jsonl
   cdpo_validation.json
+  cdpo_dataset_manifest.json
+  llamafactory_dataset_info_snippet.json
   summary.csv
   summary.json
   method_summary.csv

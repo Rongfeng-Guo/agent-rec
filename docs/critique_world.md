@@ -165,6 +165,16 @@ python -B -m user_simulator.evaluation.validate_cdpo_pairs \
   --output outputs/closed_loop_oracle/cdpo_validation.json
 ```
 
+Build a dataset manifest and LLaMA-Factory dataset-info snippet:
+
+```bash
+python -B -m user_simulator.evaluation.build_cdpo_dataset_manifest \
+  --input outputs/closed_loop_oracle/cdpo_pairs.jsonl \
+  --validation outputs/closed_loop_oracle/cdpo_validation.json \
+  --manifest-output outputs/closed_loop_oracle/cdpo_dataset_manifest.json \
+  --dataset-info-output outputs/closed_loop_oracle/llamafactory_dataset_info_snippet.json
+```
+
 ## Output Files
 
 Each run writes:
@@ -175,6 +185,8 @@ branch_rollouts.jsonl
 dpo_pairs.jsonl
 cdpo_pairs.jsonl
 cdpo_validation.json
+cdpo_dataset_manifest.json
+llamafactory_dataset_info_snippet.json
 summary.csv
 summary.json
 method_summary.csv
@@ -191,8 +203,10 @@ but it does not itself run SFT, GPE, HAP, or CDPO. The intended bridge is:
 
 1. use CritiqueWorld to validate scope-aware memory behavior;
 2. export `dpo_pairs.jsonl`;
-3. inspect `cdpo_pairs.jsonl` as the first-pass GIMO/LLaMA-Factory data bridge;
-4. run SFT/GPE/HAP/CDPO only after model weights, dataset paths, GPU resources,
+3. validate `cdpo_pairs.jsonl` and inspect `cdpo_dataset_manifest.json`;
+4. merge `llamafactory_dataset_info_snippet.json` into the selected training
+   configuration after deciding the final data schema;
+5. run SFT/GPE/HAP/CDPO only after model weights, dataset paths, GPU resources,
    and API endpoints are configured.
 
 ## Limitations and Next Steps

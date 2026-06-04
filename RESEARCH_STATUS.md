@@ -43,6 +43,8 @@ Run `git rev-parse HEAD` after the final status commit for the exact commit.
   - `dpo_pairs.jsonl`
   - `cdpo_pairs.jsonl`
   - `cdpo_validation.json`
+  - `cdpo_dataset_manifest.json`
+  - `llamafactory_dataset_info_snippet.json`
   - `summary.csv`
   - `summary.json`
   - `method_summary.csv`
@@ -64,6 +66,8 @@ Run `git rev-parse HEAD` after the final status commit for the exact commit.
   `rejected`, `score_delta`, and source metadata.
 - CDPO bridge validator with strict positive `score_delta`, required fields,
   branch schema checks, and machine-readable validation summaries.
+- CDPO dataset manifest builder with file hash, split ids, schema notes, and a
+  LLaMA-Factory dataset-info snippet.
 - Pytest regression coverage for CritiqueScope and CritiqueWorld.
 - Documentation:
   - `docs/driftaware_gimo.md`
@@ -81,8 +85,8 @@ evaluation, and not complete causal inference.
 | --- | --- | ---: | --- |
 | Memory baseline deterministic | SMOKE_TEST_ONLY | 150 rows | `outputs/memory_baselines` |
 | Memory baseline noisy | SMOKE_TEST_ONLY | 75 rows | `outputs/memory_baselines_noisy` |
-| CritiqueWorld oracle | SMOKE_TEST_ONLY | 175 summary rows; 1740 trajectory rows; 2850 branch rows; 80 strict-positive raw pairs; 80 CDPO bridge pairs; CDPO validation PASS | `outputs/closed_loop_oracle` |
-| CritiqueWorld deterministic parser | SMOKE_TEST_ONLY | 105 summary rows; 1044 trajectory rows; 1710 branch rows; 27 strict-positive raw pairs; 27 CDPO bridge pairs; CDPO validation PASS | `outputs/closed_loop_deterministic` |
+| CritiqueWorld oracle | SMOKE_TEST_ONLY | 175 summary rows; 1740 trajectory rows; 2850 branch rows; 80 strict-positive raw pairs; 80 CDPO bridge pairs; CDPO validation PASS; manifest built | `outputs/closed_loop_oracle` |
+| CritiqueWorld deterministic parser | SMOKE_TEST_ONLY | 105 summary rows; 1044 trajectory rows; 1710 branch rows; 27 strict-positive raw pairs; 27 CDPO bridge pairs; CDPO validation PASS; manifest built | `outputs/closed_loop_deterministic` |
 
 ## Actual Closed-Loop Result Snapshot
 
@@ -152,6 +156,8 @@ effectiveness.
 | `python -B -m user_simulator.evaluation.run_closed_loop_benchmark --modes none flat structured time_decay critiquescope --scenarios all --seeds 0 1 2 --max-turns 12 --top-k 5 --parser-mode deterministic --output-dir outputs\closed_loop_deterministic` | PASS | 105 summary rows, 1044 trajectory rows, 1710 branch rows, 27 strict-positive raw pairs, 27 CDPO bridge pairs. |
 | `python -B -m user_simulator.evaluation.validate_cdpo_pairs --input outputs\closed_loop_oracle\cdpo_pairs.jsonl --output outputs\closed_loop_oracle\cdpo_validation.json` | PASS | 80 rows, min score delta 0.034, mean 0.147. |
 | `python -B -m user_simulator.evaluation.validate_cdpo_pairs --input outputs\closed_loop_deterministic\cdpo_pairs.jsonl --output outputs\closed_loop_deterministic\cdpo_validation.json` | PASS | 27 rows, min score delta 0.066, mean 0.191. |
+| `python -B -m user_simulator.evaluation.build_cdpo_dataset_manifest --input outputs\closed_loop_oracle\cdpo_pairs.jsonl --validation outputs\closed_loop_oracle\cdpo_validation.json --manifest-output outputs\closed_loop_oracle\cdpo_dataset_manifest.json --dataset-info-output outputs\closed_loop_oracle\llamafactory_dataset_info_snippet.json --dev-fraction 0.2` | PASS | 80 rows; train/dev split ids written. |
+| `python -B -m user_simulator.evaluation.build_cdpo_dataset_manifest --input outputs\closed_loop_deterministic\cdpo_pairs.jsonl --validation outputs\closed_loop_deterministic\cdpo_validation.json --manifest-output outputs\closed_loop_deterministic\cdpo_dataset_manifest.json --dataset-info-output outputs\closed_loop_deterministic\llamafactory_dataset_info_snippet.json --dev-fraction 0.2` | PASS | 27 rows; train/dev split ids written. |
 | `python -m compileall user_simulator` | PASS | Bytecode side effects cleaned from the worktree. |
 | `git diff --check` | PASS | Only Windows CRLF conversion warnings were reported. |
 
