@@ -84,7 +84,8 @@ python -B -m user_simulator.evaluation.critique_parser \
   --backend deterministic \
   --output outputs/parser_smoke/parsed.jsonl
 python -B -m user_simulator.evaluation.critique_rollout_adapter \
-  --output-dir outputs/rollout_adapter_smoke
+  --output-dir outputs/rollout_adapter_smoke \
+  --fail-on-audit-error
 python -B -m user_simulator.evaluation.run_memory_baselines \
   --modes none flat structured time_decay critiquescope \
   --scenario-set deterministic \
@@ -172,7 +173,8 @@ Then run:
 ```bash
 python -B -m user_simulator.evaluation.critique_rollout_adapter \
   --input real_rollouts.jsonl \
-  --output-dir outputs/real_rollout_adapter
+  --output-dir outputs/real_rollout_adapter \
+  --fail-on-audit-error
 ```
 
 ## Result Paths
@@ -203,6 +205,8 @@ outputs/parser_smoke/
   parsed.jsonl
 outputs/rollout_adapter_smoke/
   adapter_metadata.json
+  adapter_audit.jsonl
+  adapter_failures.jsonl
   critique_pairs.jsonl
   normalized_scenarios.jsonl
 outputs/scenario_validation/

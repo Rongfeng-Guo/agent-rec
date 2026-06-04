@@ -1,6 +1,9 @@
 {
-  "status": "SMOKE_TEST_ONLY",
+  "status": "PASS",
+  "input_status": "SMOKE_TEST_ONLY",
   "input": "DEFAULT_SCENARIOS",
   "scenario_count": 6,
-  "pair_count": 12
+  "pair_count": 12,
+  "audit_checks": 18,
+  "audit_failures": 0
 }

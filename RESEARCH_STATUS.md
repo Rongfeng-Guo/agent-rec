@@ -107,6 +107,10 @@
   - `docs/critique_world.md`
   - `docs/experiment_protocol.md`
   - `docs/baseline_matrix.md`
+- Rollout-adapter audit outputs for normalized scenario ingestion:
+  - `adapter_audit.jsonl`
+  - `adapter_failures.jsonl`
+  - fail-fast adapter CLI mode for real rollout inputs
 
 ## SMOKE_TEST_ONLY
 
@@ -220,6 +224,7 @@ effectiveness.
 | `pytest -q tests\\test_critique_scope.py tests\\test_critique_world.py` | PASS | 53 targeted tests passed after deterministic parser normalization updates. |
 | `python -B -m user_simulator.evaluation.run_validity_gate --modes none flat structured time_decay critiquescope --scenarios all --seeds 0 1 2 --max-turns 12 --top-k 5 --parser-mode deterministic --output-dir outputs\\validity_gate_deterministic --fail-on-critical-invariant` | PASS | Deterministic gate passed with 60/60 invariants and 0 critical failures. |
 | `python -B -m user_simulator.evaluation.run_closed_loop_pipeline --modes none flat structured time_decay critiquescope --scenarios all --seeds 0 1 2 --max-turns 12 --top-k 5 --parser-mode deterministic --run-validity-gate --fail-on-critical-invariant --output-dir outputs\\closed_loop_deterministic` | PASS | Deterministic pipeline now passes fail-fast validity gate; 42 CDPO bridge pairs; train/dev 34/8. |
+| `python -B -m user_simulator.evaluation.critique_rollout_adapter --output-dir outputs\\rollout_adapter_smoke --fail-on-audit-error` | PASS | Rollout-adapter audit passed with 18/18 checks and 0 failures; normalized scenarios remain pair-export ready. |
 
 ## Next Priorities
 
