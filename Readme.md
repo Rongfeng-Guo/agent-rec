@@ -2,16 +2,15 @@
 
 ![Repository overview](pic/image.png)
 
-This repository is our maintained research and engineering branch built on top
-of the original GIMO codebase. The focus here is not to mirror the public
-paper release page, but to extend the system with reproducible memory-aware
-recommendation experiments, controlled critique handling, and closed-loop
-evaluation artifacts that we can continue to evolve.
+GIMO-MemoryLab is a research and engineering repository for multi-turn
+recommendation, memory-aware feedback modeling, and closed-loop evaluation.
+The codebase provides executable pipelines for structured memory experiments,
+scope-aware critique processing, controlled preference-pair construction, and
+artifact-oriented evaluation outputs.
 
 ## What This Repository Contains
 
-The current codebase combines the original multi-turn recommendation pipeline
-with our own extensions for memory behavior analysis:
+The current codebase includes the following components:
 
 - `DriftAware-GIMO`: structured memory for positive, negative, hard, and soft
   preference tracking under interest drift.
@@ -22,7 +21,7 @@ with our own extensions for memory behavior analysis:
 - CDPO bridge tooling: controlled preference-pair export, validation, manifest
   generation, train/dev split materialization, and readable audit reports.
 
-If you want the current state of the project at a glance, start with
+For the current implementation and experiment status, start with
 [`RESEARCH_STATUS.md`](RESEARCH_STATUS.md).
 
 ## Quick Start
@@ -39,13 +38,13 @@ pip install -r requirements.txt
 
 ### AILO environment assets
 
-The AILO simulator path still expects the embedding index assets referenced by
-the original project structure.
+The AILO simulator path expects the embedding index assets used by the project
+task pipeline.
 
 1. Download the [index file](https://drive.google.com/file/d/1P6QkUrikHnwxNov0fUY3SxWQkl1qve0O/view?usp=drive_link).
 2. Unzip the downloaded file into `user_simulator/embedding/`.
 
-Additional simulator notes live in [`user_simulator/readme.md`](user_simulator/readme.md).
+Additional simulator notes are available in [`user_simulator/readme.md`](user_simulator/readme.md).
 
 ### API configuration
 
@@ -57,15 +56,15 @@ interface.
 3. Open-source models can be exposed through a local OpenAI-compatible server
    such as `vllm`.
 
-The new CritiqueWorld evaluation path does not require an API key.
+The CritiqueWorld evaluation path does not require an API key.
 
 ## Main Workstreams
 
 ### 1. Baseline GIMO training path
 
-The original training stack is still present for users who want to continue the
-SFT, GPE, HAP, and CDPO workflow after configuring datasets, model weights, and
-GPU resources.
+This repository includes the SFT, GPE, HAP, and CDPO training entry points used
+by the project workflow after datasets, model weights, and GPU resources are
+configured.
 
 SFT:
 
@@ -91,8 +90,8 @@ bash gimo/{dataset}/gimo/adpo_v1_sample1.sh
 ### 2. DriftAware-GIMO
 
 `StructuredMemory` adds explicit slots for positive preferences, negative
-preferences, hard constraints, and soft preferences so we can inspect how
-memory behaves under preference drift.
+preferences, hard constraints, and soft preferences for preference-drift
+analysis and memory-state inspection.
 
 Example:
 
@@ -119,8 +118,8 @@ Protocol details are documented in [`docs/driftaware_gimo.md`](docs/driftaware_g
 
 ### 3. CritiqueScope-GIMO
 
-`CritiqueScopeMemory` treats natural-language feedback as scope-aware memory
-updates instead of promoting every complaint into a durable preference.
+`CritiqueScopeMemory` models natural-language feedback as scope-aware memory
+updates with separate handling for temporary and durable signals.
 
 - Fast memory handles temporary fatigue, session context, and immediate
   diversity requests.
@@ -159,8 +158,9 @@ schema and protocol.
 
 ### 4. CritiqueWorld closed-loop evaluation
 
-CritiqueWorld is our main addition for testing whether memory interventions
-change actual recommendation trajectories rather than just memory state.
+CritiqueWorld is a closed-loop evaluation environment for measuring how memory
+interventions affect recommendation trajectories, branch rollouts, and
+counterfactual preference-pair exports.
 
 Recommended full pipeline, oracle parser:
 
@@ -192,9 +192,9 @@ This pipeline runs the benchmark, validates `cdpo_pairs.jsonl`, materializes
 `cdpo_train.jsonl` and `cdpo_dev.jsonl`, builds the dataset manifest, and
 writes `closed_loop_report.md` plus `pipeline_metadata.json`.
 
-Important framing:
+Interpretation:
 the branch-level uplift and regret numbers are controlled counterfactual rollout
-proxies, not human-evaluation results and not full causal claims.
+proxies intended for diagnostic evaluation.
 
 More detail lives in [`docs/critique_world.md`](docs/critique_world.md) and
 [`docs/experiment_protocol.md`](docs/experiment_protocol.md).
@@ -208,34 +208,31 @@ The main generated artifacts currently tracked in this repository include:
 - `outputs/closed_loop_oracle`
 - `outputs/closed_loop_deterministic`
 
-Those folders contain JSONL trajectories, summary tables, validation files,
+These folders contain JSONL trajectories, summary tables, validation files,
 dataset manifests, train/dev split files, and Markdown audit reports for the
 current controlled experiments.
 
 ## Current Position
 
-What is already working:
+Available and validated:
 
 - controlled memory-level and closed-loop evaluation without calling paid APIs
 - CDPO bridge export with validation and dataset manifests
 - materialized train/dev split generation
 - deterministic regression tests for CritiqueScope and CritiqueWorld
 
-What still depends on external setup:
+Requires external setup:
 
 - full SFT and CDPO training
 - real AILO rollout evaluation
 - OpenAI-compatible parser mode
 - GPU-backed model experiments
 
-## Acknowledgment
+## Dependency Notes
 
-This repository started from the GIMO project structure and continues to reuse
-parts of the surrounding training stack. The current branch, however, is aimed
-at our own ongoing memory and evaluation improvements rather than serving as a
-verbatim mirror of the original public release.
-
-Relevant upstream components:
+This repository reuses parts of the GIMO project structure and related training
+tooling. The following external components remain relevant to the current
+implementation:
 
 - GIMO training and simulator structure
 - [ECPO](https://github.com/XueyangFeng/ECPO) for related evaluation ideas
