@@ -153,6 +153,14 @@ Build controlled preference pairs:
 python -B -m user_simulator.evaluation.critique_uplift_pairs --output critique_pairs.jsonl
 ```
 
+Normalize rollout-style critique scenarios and audit them before pair export:
+
+```bash
+python -B -m user_simulator.evaluation.critique_rollout_adapter \
+  --output-dir outputs/rollout_adapter_smoke \
+  --fail-on-audit-error
+```
+
 See [`docs/critiquescope_gimo.md`](docs/critiquescope_gimo.md) for the full
 schema and protocol.
 
@@ -233,13 +241,14 @@ The main generated artifacts currently tracked in this repository include:
 
 - `outputs/memory_baselines`
 - `outputs/memory_baselines_noisy`
+- `outputs/rollout_adapter_smoke`
 - `outputs/closed_loop_oracle`
 - `outputs/closed_loop_deterministic`
 - `outputs/validity_gate`
 
 These folders contain JSONL trajectories, summary tables, validation files,
-dataset manifests, train/dev split files, and Markdown audit reports for the
-current controlled experiments.
+dataset manifests, train/dev split files, rollout-adapter audit logs, and
+Markdown audit reports for the current controlled experiments.
 
 ## Current Position
 

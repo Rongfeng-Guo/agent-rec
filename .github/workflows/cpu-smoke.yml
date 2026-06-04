@@ -20,6 +20,12 @@ jobs:
       - name: Run pytest
         run: pytest -q
 
+      - name: Run rollout adapter audit
+        run: >
+          python -B -m user_simulator.evaluation.critique_rollout_adapter
+          --output-dir outputs/ci_rollout_adapter
+          --fail-on-audit-error
+
       - name: Run validity gate
         run: >
           python -B -m user_simulator.evaluation.run_validity_gate

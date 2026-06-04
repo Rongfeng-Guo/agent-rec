@@ -146,7 +146,8 @@ Normalize existing rollout utilities and build uplift pairs:
 
 ```bash
 python -B -m user_simulator.evaluation.critique_rollout_adapter \
-  --output-dir outputs/rollout_adapter_smoke
+  --output-dir outputs/rollout_adapter_smoke \
+  --fail-on-audit-error
 ```
 
 The default benchmark includes:
