@@ -1,44 +1,49 @@
 {
   "status": "PASS",
-  "rows": 29,
+  "rows": 42,
   "errors": [],
   "error_count": 0,
-  "score_delta_min": 0.03399999999999981,
-  "score_delta_mean": 0.46600000000000025,
-  "score_delta_max": 1.0300000000000002,
+  "score_delta_min": 0.009999999999999787,
+  "score_delta_mean": 0.5155714285714282,
+  "score_delta_max": 2.0679999999999996,
   "by_method": {
-    "critiquescope": 12,
-    "structured": 2,
-    "time_decay": 15
+    "critiquescope": 21,
+    "structured": 5,
+    "time_decay": 16
   },
   "by_scenario": {
-    "behavioral_rollback": 3,
+    "behavioral_rollback": 6,
     "diversity_request": 12,
-    "mixed_multi_turn": 7,
-    "temporary_fatigue": 7
+    "genuine_drift": 1,
+    "mixed_multi_turn": 10,
+    "session_context": 3,
+    "temporary_fatigue": 10
   },
   "by_rejected_branch": {
-    "ignore": 21,
-    "over_apply": 8
+    "ignore": 22,
+    "over_apply": 20
   },
   "by_method_scenario": {
     "critiquescope": {
+      "behavioral_rollback": 3,
       "diversity_request": 6,
-      "mixed_multi_turn": 3,
-      "temporary_fatigue": 3
+      "mixed_multi_turn": 6,
+      "temporary_fatigue": 6
     },
     "structured": {
       "mixed_multi_turn": 1,
+      "session_context": 3,
       "temporary_fatigue": 1
     },
     "time_decay": {
       "behavioral_rollback": 3,
       "diversity_request": 6,
+      "genuine_drift": 1,
       "mixed_multi_turn": 3,
       "temporary_fatigue": 3
     }
   },
-  "unique_id_count": 29,
+  "unique_id_count": 42,
   "duplicate_ids": [],
   "input": "outputs\\closed_loop_deterministic\\cdpo_pairs.jsonl"
 }

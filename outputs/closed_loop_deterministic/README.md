@@ -5,7 +5,7 @@
 - Proxy: controlled counterfactual rollout proxy
 - Trajectories: `1257` rows
 - Branch rollouts: `2025` rows
-- DPO/CDPO pairs: `29` rows
+- DPO/CDPO pairs: `42` rows
 - CDPO train/dev splits: `cdpo_train.jsonl`, `cdpo_dev.jsonl`
 - CDPO dataset manifest: `cdpo_dataset_manifest.json`
 - LLaMA-Factory dataset-info snippet: `llamafactory_dataset_info_snippet.json`

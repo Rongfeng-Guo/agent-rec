@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "created_at_utc": "2026-06-04T14:22:42.134218+00:00",
+  "created_at_utc": "2026-06-04T14:33:25.130092+00:00",
   "output_dir": "outputs\\closed_loop_deterministic",
   "parser_mode": "deterministic",
   "modes": [
@@ -25,15 +25,15 @@
   "counts": {
     "trajectories": 1257,
     "branch_rollouts": 2025,
-    "dpo_pairs": 29,
-    "cdpo_pairs": 29,
-    "cdpo_train": 23,
-    "cdpo_dev": 6
+    "dpo_pairs": 42,
+    "cdpo_pairs": 42,
+    "cdpo_train": 34,
+    "cdpo_dev": 8
   },
-  "unique_cdpo_ids": 29,
+  "unique_cdpo_ids": 42,
   "audit_errors": [],
   "validity_gate": {
-    "timestamp_utc": "2026-06-04T14:22:41.681294+00:00",
+    "timestamp_utc": "2026-06-04T14:33:24.646091+00:00",
     "python_version": "3.12.3 | packaged by conda-forge | (main, Apr 15 2024, 18:20:11) [MSC v.1938 64 bit (AMD64)]",
     "platform": "Windows-11-10.0.26200-SP0",
     "modes": [
@@ -61,10 +61,10 @@
     "max_turns": 12,
     "top_k": 5,
     "branch_horizon": 5,
-    "fail_on_critical_invariant": false,
+    "fail_on_critical_invariant": true,
     "total_invariants": 60,
-    "failed_invariants": 24,
-    "critical_failed_invariants": 24
+    "failed_invariants": 0,
+    "critical_failed_invariants": 0
   },
   "steps": [
     {
@@ -180,7 +180,8 @@
         "--seeds",
         "0",
         "1",
-        "2"
+        "2",
+        "--fail-on-critical-invariant"
       ]
     }
   ]
