@@ -1,10 +1,16 @@
 import json
 import logging
-from model.model import OpenAIClient
+try:
+    from model.model import OpenAIClient
+except ModuleNotFoundError:
+    from user_simulator.persona.model.model import OpenAIClient
 from .state.critique_scope import CritiqueScopeMemory
 from .state.dialogue_history import DialogueHistory
 from .state.structured_memory import StructuredMemory
-from utils import load_config, load_jsonl, load_json
+try:
+    from utils import load_config, load_jsonl, load_json
+except ModuleNotFoundError:
+    from user_simulator.utils import load_config, load_jsonl, load_json
 from user_simulator.prompts import recommender_rater_template, policy_rater_template, expression_rater_template, policy_selector_template, ask_recommendation_template, response_to_clarification_template, recommendation_feedback_template, end_conversation_template
 
 # 配置日志记录

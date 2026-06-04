@@ -1,0 +1,10 @@
+seed: 0
+scenario_set: deterministic
+memory_mode: critiquescope
+promotion_threshold: 0.84
+decay_horizon: 5
+session_reset: true
+rollback_on_positive_behavior: true
+output_dir: outputs/memory_baselines_full
+run_name: full
+status: PENDING_REAL_GIMO_ROLLOUTS

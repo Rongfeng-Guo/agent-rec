@@ -14,7 +14,8 @@ from typing import Iterable, List, Optional
 
 VALID_OPERATIONS = {"promote", "attenuate", "filter", "diversify", "explore", "rollback"}
 VALID_OBJECT_SCOPES = {"item", "attribute", "category", "creator", "slate", "global"}
-VALID_TEMPORAL_SCOPES = {"next-slate", "session", "contextual", "persistent"}
+VALID_TEMPORAL_SCOPES = {"next_slate", "session", "contextual", "persistent"}
+VALID_STATUSES = {"active_fast", "promoted_slow", "expired", "rolled_back"}
 
 
 @dataclass
@@ -27,21 +28,34 @@ class Critique:
     horizon: int = 5
     hardness: str = "soft"
     confidence: float = 0.7
-    promotion_condition: str = "repeat_across_sessions"
+    promotion_condition: Optional[str] = "repeat_across_sessions"
+    source_turn: int = 0
+    created_at_step: int = 0
+    expires_at_step: Optional[int] = None
+    status: str = "active_fast"
     created_turn: int = 0
     remaining_horizon: Optional[int] = None
     active: bool = True
     evidence_count: int = 1
 
     def __post_init__(self):
+        self.temporal_scope = self.temporal_scope.replace("-", "_")
         if self.operation not in VALID_OPERATIONS:
             raise ValueError(f"Unsupported critique operation: {self.operation}")
         if self.object_scope not in VALID_OBJECT_SCOPES:
             raise ValueError(f"Unsupported object scope: {self.object_scope}")
         if self.temporal_scope not in VALID_TEMPORAL_SCOPES:
             raise ValueError(f"Unsupported temporal scope: {self.temporal_scope}")
+        if self.status not in VALID_STATUSES:
+            raise ValueError(f"Unsupported critique status: {self.status}")
+        if self.source_turn == 0:
+            self.source_turn = self.created_turn
+        if self.created_at_step == 0:
+            self.created_at_step = self.created_turn
         if self.remaining_horizon is None:
             self.remaining_horizon = self.horizon
+        if self.expires_at_step is None and self.horizon is not None and not self.is_persistent:
+            self.expires_at_step = self.created_at_step + self.horizon
 
     @property
     def is_persistent(self) -> bool:
@@ -100,9 +114,11 @@ class CritiqueScopeMemory:
             critique = existing
             event_type = "refresh_fast"
         elif critique.is_persistent:
+            critique.status = "promoted_slow"
             self.slow_memory.append(critique)
             event_type = "write_slow"
         else:
+            critique.status = "active_fast"
             self.fast_memory.append(critique)
             event_type = "write_fast"
 
@@ -131,6 +147,8 @@ class CritiqueScopeMemory:
         critique.temporal_scope = "persistent"
         critique.remaining_horizon = None
         critique.active = True
+        critique.status = "promoted_slow"
+        critique.expires_at_step = None
         self.slow_memory.append(critique)
 
     def observe_positive_behavior(self, target: str):
@@ -139,24 +157,27 @@ class CritiqueScopeMemory:
         for critique in self.fast_memory:
             if critique.active and critique.operation == "attenuate" and critique.target.lower() in target_lower:
                 critique.active = False
+                critique.status = "rolled_back"
                 self._record("rollback_fast", critique)
 
     def decay_fast_memory(self):
         for critique in self.fast_memory:
             if not critique.active or critique.remaining_horizon is None:
                 continue
-            if critique.temporal_scope == "next-slate":
+            if critique.temporal_scope == "next_slate":
                 critique.remaining_horizon -= 1
             elif critique.temporal_scope in {"session", "contextual"}:
                 critique.remaining_horizon -= 1
             if critique.remaining_horizon <= 0:
                 critique.active = False
+                critique.status = "expired"
                 self._record("expire_fast", critique)
 
     def end_session(self):
         for critique in self.fast_memory:
             if critique.temporal_scope in {"session", "contextual"}:
                 critique.active = False
+                critique.status = "expired"
                 self._record("expire_session", critique)
 
     def active_fast(self) -> List[Critique]:
@@ -228,6 +249,10 @@ class CritiqueScopeMemory:
                 "confidence": critique.confidence,
                 "active": critique.active,
                 "remaining_horizon": critique.remaining_horizon,
+                "status": critique.status,
+                "source_turn": critique.source_turn,
+                "created_at_step": critique.created_at_step,
+                "expires_at_step": critique.expires_at_step,
             }
         )
 
@@ -278,7 +303,7 @@ def infer_critiques(user_utterance: str) -> List[dict]:
                 "operation": "diversify",
                 "reason": "diversity request",
                 "object_scope": "slate",
-                "temporal_scope": "next-slate",
+                "temporal_scope": "next_slate",
                 "horizon": 1,
                 "hardness": "soft",
                 "confidence": 0.72,

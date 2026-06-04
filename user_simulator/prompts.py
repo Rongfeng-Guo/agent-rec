@@ -1,4 +1,13 @@
-from langchain.prompts import PromptTemplate
+try:
+    from langchain.prompts import PromptTemplate
+except ModuleNotFoundError:
+    class PromptTemplate:
+        def __init__(self, input_variables=None, template="", **kwargs):
+            self.input_variables = input_variables or kwargs.get("input_variabels", [])
+            self.template = template
+
+        def format(self, **kwargs):
+            return self.template.format(**kwargs)
 
 RECOMMENDATION_RATER_backup = """
 You are a user simulator, and your task is to evaluate the quality of a single recommendation provided by the {domain} conversational recommendation system. 

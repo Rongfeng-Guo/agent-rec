@@ -1,5 +1,7 @@
 # CritiqueScope-GIMO: Scope-Aware Critique Alignment
 
+## Motivation
+
 CritiqueScope models natural-language feedback as an exposure-conditioned
 intervention request rather than a durable user preference label.
 
@@ -8,6 +10,18 @@ The core question is:
 ```text
 Is this utterance describing the user, or correcting the current recommendation policy?
 ```
+
+## Feedback Is Not Always Long-Term Preference
+
+The same negative surface form can mean different things:
+
+| Feedback | Scope interpretation | Correct update |
+| --- | --- | --- |
+| "Too much UFC lately." | Temporary fatigue after recent exposure. | Fast-memory attenuation with a short horizon. |
+| "Never recommend political content." | Durable dislike or safety constraint. | Slow-memory persistent filter. |
+| "Show something different." | Slate-level diversity request. | Diversify/explore next slate; do not blacklist the old category. |
+| "Tonight I need a family place." | Session context. | Session-scoped promotion that expires. |
+| "I am switching from Windows to Mac." | Genuine drift. | Roll back old preference and promote the new one. |
 
 ## Critique schema
 
@@ -50,6 +64,18 @@ Temporary critiques decay by their semantic horizon. Persistent language such as
 complaints such as “too much UFC lately” remain in fast memory and should not
 contaminate the durable profile unless the promotion condition is satisfied.
 
+## Promotion, Decay, and Rollback
+
+CritiqueScope uses explicit lifecycle rules:
+
+- Persistent instructions and hard constraints enter slow memory immediately.
+- Temporary fatigue and diversity requests default to `promotion_condition="never"`.
+- Repeated evidence can promote a critique only if the parser marks it as
+  promotable and the configurable confidence/evidence thresholds are met.
+- Fast-memory critiques decay by semantic horizon.
+- Positive behavior on an attenuated target triggers rollback, preventing a
+  temporary complaint from becoming an accidental long-term ban.
+
 ## Counterfactual uplift
 
 The reward target should measure the value of following the critique, not only
@@ -81,6 +107,16 @@ content the user still likes.
 | Over-Correction Regret | Post-expiry value lost by suppressing still-relevant content. |
 | Memory Contamination Rate | Temporary critiques incorrectly stored in slow memory. |
 | Token Cost | Prompt words consumed by the memory representation. |
+
+## Baselines
+
+| Method | Description |
+| --- | --- |
+| None | Ignores memory updates. |
+| Flat Memory | Promotes every critique to slow memory. |
+| Structured Memory | Stores preference buckets but does not model critique scope. |
+| Time Decay | Applies a uniform temporary horizon to all critiques. |
+| CritiqueScope | Uses operation, object scope, temporal scope, horizon, promotion, and rollback. |
 
 ## Quick benchmark
 
@@ -124,3 +160,21 @@ env = UserAgentEnv(
 
 For full experiments, use a strong LLM parser to emit the critique schema, then
 feed follow/ignore/over-apply rollouts into GIMO/CDPO preference construction.
+
+## Limitations
+
+- The deterministic benchmark is a controlled smoke test, not evidence of
+  real-world recommendation quality.
+- Counterfactual uplift is implemented as a rollout proxy with fixed utilities;
+  it is not a full causal identification strategy.
+- The current parser fallback is cue based. Full experiments should replace it
+  with an LLM parser or annotated critique labels.
+- No SFT/GPE/HAP/CDPO training result is claimed by this branch.
+
+## Next Steps
+
+1. Add an LLM critique parser that emits the schema above.
+2. Generate follow/ignore/over-apply rollouts from real GIMO agents.
+3. Convert uplift-positive branches into CDPO pairs with
+   `user_simulator.evaluation.critique_uplift_pairs`.
+4. Evaluate transfer under multiple user simulators and small human checks.
