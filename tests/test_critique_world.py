@@ -2,6 +2,8 @@ import json
 
 from user_simulator.evaluation.run_closed_loop_benchmark import (
     apply_critiques,
+    build_cdpo_pair,
+    candidate_coverage_error,
     make_memory,
     parse_event_critiques,
     rollout,
@@ -122,6 +124,7 @@ def test_runner_exports_expected_files(tmp_path):
     expected = {
         "trajectories.jsonl",
         "branch_rollouts.jsonl",
+        "cdpo_pairs.jsonl",
         "dpo_pairs.jsonl",
         "summary.csv",
         "summary.json",
@@ -164,3 +167,52 @@ def test_dpo_pairs_are_valid_jsonl(tmp_path):
     rows = [json.loads(line) for line in (tmp_path / "dpo_pairs.jsonl").read_text(encoding="utf-8").splitlines()]
     assert rows
     assert {"scenario", "seed", "state_snapshot", "critique", "chosen_branch", "rejected_branch", "chosen_trajectory", "rejected_trajectory", "uplift", "metadata"} <= set(rows[0])
+
+
+def test_cdpo_pair_bridge_contains_training_fields(tmp_path):
+    from user_simulator.evaluation.run_closed_loop_benchmark import main
+    import sys
+
+    old_argv = sys.argv
+    sys.argv = [
+        "run_closed_loop_benchmark",
+        "--modes",
+        "critiquescope",
+        "--scenarios",
+        "temporary_fatigue",
+        "--seeds",
+        "0",
+        "--max-turns",
+        "4",
+        "--top-k",
+        "5",
+        "--parser-mode",
+        "oracle",
+        "--output-dir",
+        str(tmp_path),
+    ]
+    try:
+        main()
+    finally:
+        sys.argv = old_argv
+
+    rows = [json.loads(line) for line in (tmp_path / "cdpo_pairs.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert rows
+    assert {"conversations", "chosen", "rejected", "score_delta", "metadata"} <= set(rows[0])
+    assert rows[0]["metadata"]["format"] == "llamafactory_dpo_bridge"
+
+
+def test_candidate_coverage_error_flags_missing_targets():
+    rows = [
+        {
+            "generated_critique": {"critiques": [{"target": "missing_category"}]},
+            "ranked_slate": {"slate": ["ufc_1", "boxing_1"]},
+        }
+    ]
+    assert candidate_coverage_error(rows) == 1.0
+
+
+def test_memory_update_error_is_reported_for_parser_miss():
+    rows, *_ = run_scenario("genuine_drift", mode="critiquescope", parser_mode="deterministic", max_turns=4)
+    assert any(row["generated_critique"] for row in rows)
+    assert any("memory_update_error" in row for row in rows)

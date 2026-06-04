@@ -89,7 +89,12 @@ branches from the same snapshot:
   constraints
 
 Each branch continues for a fixed horizon and exports both branch trajectories
-and DPO/CDPO-style preference pairs.
+and DPO/CDPO-style preference pairs. The runner writes both the raw
+counterfactual pair schema (`dpo_pairs.jsonl`) and a lightweight
+LLaMA-Factory/DPO bridge schema (`cdpo_pairs.jsonl`) with `conversations`,
+`chosen`, `rejected`, and `score_delta` fields. Pairs are emitted only when the
+chosen `follow` branch has strictly higher rollout utility than the rejected
+branch.
 
 ## Error Attribution
 
@@ -160,6 +165,7 @@ Each run writes:
 trajectories.jsonl
 branch_rollouts.jsonl
 dpo_pairs.jsonl
+cdpo_pairs.jsonl
 summary.csv
 summary.json
 method_summary.csv
@@ -176,8 +182,7 @@ but it does not itself run SFT, GPE, HAP, or CDPO. The intended bridge is:
 
 1. use CritiqueWorld to validate scope-aware memory behavior;
 2. export `dpo_pairs.jsonl`;
-3. map the chosen/rejected branch trajectories into the GIMO/LLaMA-Factory data
-   format;
+3. inspect `cdpo_pairs.jsonl` as the first-pass GIMO/LLaMA-Factory data bridge;
 4. run SFT/GPE/HAP/CDPO only after model weights, dataset paths, GPU resources,
    and API endpoints are configured.
 

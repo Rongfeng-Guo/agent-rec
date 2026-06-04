@@ -201,6 +201,7 @@ outputs/closed_loop_oracle/
   trajectories.jsonl
   branch_rollouts.jsonl
   dpo_pairs.jsonl
+  cdpo_pairs.jsonl
   summary.csv
   summary.json
   method_summary.csv

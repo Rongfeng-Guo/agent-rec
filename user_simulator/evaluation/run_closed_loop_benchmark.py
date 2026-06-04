@@ -74,6 +74,63 @@ def parse_event_critiques(event: dict, parser_mode: str) -> tuple[list[dict], di
     raise ValueError(f"Unsupported parser mode: {parser_mode}")
 
 
+def critique_matches(a: dict, b: dict) -> bool:
+    return (
+        str(a.get("target", "")).lower() == str(b.get("target", "")).lower()
+        and a.get("operation") == b.get("operation")
+        and a.get("temporal_scope") == b.get("temporal_scope")
+    )
+
+
+def target_in_catalog(scenario: Scenario, critique: dict) -> bool:
+    target = str(critique.get("target", "")).lower()
+    if not target or target == "current slate":
+        return True
+    for item in scenario.items:
+        if target in item.category.lower() or target in item.item_id.lower():
+            return True
+        for value in item.attributes.values():
+            values = value if isinstance(value, list) else [value]
+            if any(target in str(candidate).lower() for candidate in values):
+                return True
+    return False
+
+
+def memory_contains(memory: Any, mode: str, critique: dict) -> bool:
+    target = str(critique.get("target", "")).lower()
+    if mode == "none":
+        return True
+    if mode == "critiquescope":
+        active = memory.active_fast() + memory.active_slow()
+        return any(target in item.target.lower() for item in active)
+    if mode == "structured":
+        return any(target in slot.value.lower() for slot in memory.active_slots())
+    if mode in {"flat", "time_decay"}:
+        return any(target in str(item.get("target", "")).lower() for item in memory)
+    return False
+
+
+def active_memory_targets(memory: Any, mode: str) -> list[str]:
+    if mode == "critiquescope":
+        return [item.target.lower() for item in memory.active_fast() + memory.active_slow()]
+    if mode == "structured":
+        return [slot.value.lower() for slot in memory.active_slots()]
+    if mode in {"flat", "time_decay"}:
+        return [str(item.get("target", "")).lower() for item in memory]
+    return []
+
+
+def policy_application_error_for_rank(memory: Any, mode: str, ranked: Any) -> float:
+    targets = [target for target in active_memory_targets(memory, mode) if target and target != "current slate"]
+    if not targets:
+        return 0.0
+    slate_text = " ".join(ranked.scores.keys()).lower()
+    if not any(target in slate_text for target in targets):
+        return 0.0
+    interventions = ranked.applied_interventions
+    return 0.0 if interventions else 1.0
+
+
 def apply_critiques(memory: Any, mode: str, critiques: Iterable[dict], utterance: str, turn: int, branch: str = "follow") -> dict:
     critiques = [copy.deepcopy(critique) for critique in critiques]
     if branch == "ignore" or mode == "none":
@@ -153,7 +210,12 @@ def rollout(
         cumulative += instant_utility
         memory_update = {"applied": []}
         generated_critique = None
-        attribution = {"parser_scope_error": 0.0, "memory_update_error": 0.0, "policy_application_error": 0.0, "candidate_coverage_error": 0.0}
+        attribution = {
+            "parser_scope_error": 0.0,
+            "memory_update_error": 0.0,
+            "policy_application_error": policy_application_error_for_rank(memory, mode, ranked),
+            "candidate_coverage_error": 0.0,
+        }
 
         for event in events.get(turn, []):
             if event.get("type") in {"critique", "drift"}:
@@ -173,6 +235,10 @@ def rollout(
                 critique_points.append(snapshot)
                 memory_update = apply_critiques(memory, mode, parsed, event.get("utterance", ""), turn)
                 generated_critique = {"utterance": event.get("utterance", ""), "critiques": parsed}
+                if parsed and any(not target_in_catalog(scenario, critique) for critique in parsed):
+                    attribution["candidate_coverage_error"] = 1.0
+                if parsed and any(not memory_contains(memory, mode, critique) for critique in parsed):
+                    attribution["memory_update_error"] = 1.0
                 apply_event_to_state(user_state, event)
             elif event.get("type") == "session_reset":
                 apply_event_to_state(user_state, event)
@@ -259,7 +325,7 @@ def run_branch_rollouts(
         for rejected in ["ignore", "over_apply"]:
             chosen_value = sum(row["instant_utility"] for row in branch_trajectories["follow"])
             rejected_value = sum(row["instant_utility"] for row in branch_trajectories[rejected])
-            if chosen_value >= rejected_value:
+            if chosen_value > rejected_value:
                 pairs.append(
                     {
                         "scenario": scenario.name,
@@ -308,6 +374,66 @@ def write_latex(path: Path, rows: list[dict]):
         )
     lines.extend(["\\bottomrule", "\\end{tabular}", ""])
     path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def branch_policy_text(branch: str, critique: dict) -> str:
+    target = critique.get("target", "")
+    operation = critique.get("operation", "")
+    temporal_scope = critique.get("temporal_scope", "")
+    if branch == "follow":
+        return f"Apply {operation} to {target} with temporal scope {temporal_scope}."
+    if branch == "ignore":
+        return f"Do not update memory for critique target {target}."
+    return f"Over-apply critique target {target} as a persistent hard constraint."
+
+
+def trajectory_to_training_text(rows: list[dict]) -> str:
+    parts = []
+    for row in rows:
+        slate = ", ".join(row.get("ranked_slate", {}).get("slate", []))
+        action = row.get("user_action", {}).get("action")
+        utility = float(row.get("instant_utility", 0.0))
+        parts.append(f"turn={row.get('turn')} slate=[{slate}] action={action} utility={utility:.3f}")
+    return "\n".join(parts)
+
+
+def build_cdpo_pair(pair: dict) -> dict:
+    critique_list = pair.get("critique", {}).get("critiques", [])
+    critique = critique_list[0] if critique_list else {}
+    return {
+        "id": f"{pair.get('method')}:{pair.get('scenario')}:{pair.get('seed')}:{pair.get('rejected_branch')}",
+        "scenario": pair.get("scenario"),
+        "seed": pair.get("seed"),
+        "method": pair.get("method"),
+        "parser_mode": pair.get("parser_mode"),
+        "conversations": [
+            {
+                "from": "human",
+                "value": (
+                    "Given the state snapshot and user critique, choose the recommendation policy "
+                    "that follows the instruction without over-correcting durable memory.\n"
+                    f"Critique: {json.dumps(pair.get('critique'), ensure_ascii=False)}\n"
+                    f"State snapshot turn: {pair.get('state_snapshot', {}).get('turn')}"
+                ),
+            }
+        ],
+        "chosen": {
+            "branch": pair.get("chosen_branch"),
+            "policy": branch_policy_text(pair.get("chosen_branch", "follow"), critique),
+            "trajectory": trajectory_to_training_text(pair.get("chosen_trajectory", [])),
+        },
+        "rejected": {
+            "branch": pair.get("rejected_branch"),
+            "policy": branch_policy_text(pair.get("rejected_branch", "ignore"), critique),
+            "trajectory": trajectory_to_training_text(pair.get("rejected_trajectory", [])),
+        },
+        "score_delta": pair.get("uplift"),
+        "metadata": {
+            **pair.get("metadata", {}),
+            "format": "llamafactory_dpo_bridge",
+            "source": "CritiqueWorld",
+        },
+    }
 
 
 def main():
@@ -359,7 +485,7 @@ def main():
                         "parser_scope_error": mean_attr(rows, "parser_scope_error"),
                         "memory_update_error": mean_attr(rows, "memory_update_error"),
                         "policy_application_error": mean_attr(rows, "policy_application_error"),
-                        "candidate_coverage_error": candidate_coverage_error(rows),
+                        "candidate_coverage_error": mean_attr(rows, "candidate_coverage_error"),
                     }
                 )
                 summaries.append(
@@ -378,6 +504,8 @@ def main():
     write_jsonl(output_dir / "trajectories.jsonl", trajectories)
     write_jsonl(output_dir / "branch_rollouts.jsonl", branch_rollouts)
     write_jsonl(output_dir / "dpo_pairs.jsonl", dpo_pairs)
+    cdpo_pairs = [build_cdpo_pair(pair) for pair in dpo_pairs]
+    write_jsonl(output_dir / "cdpo_pairs.jsonl", cdpo_pairs)
     write_csv(output_dir / "summary.csv", summaries, SUMMARY_FIELDS)
     (output_dir / "summary.json").write_text(json.dumps(summaries, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     method_summary = aggregate(summaries, ["method"])
@@ -399,6 +527,7 @@ def main():
         "status": "SMOKE_TEST_ONLY",
         "proxy": "controlled counterfactual rollout proxy",
         "dpo_pair_count": len(dpo_pairs),
+        "cdpo_pair_count": len(cdpo_pairs),
     }
     (output_dir / "run_metadata.json").write_text(json.dumps(metadata, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     (output_dir / "README.md").write_text(

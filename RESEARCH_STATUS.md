@@ -41,6 +41,7 @@ Run `git rev-parse HEAD` after the final status commit for the exact commit.
   - `trajectories.jsonl`
   - `branch_rollouts.jsonl`
   - `dpo_pairs.jsonl`
+  - `cdpo_pairs.jsonl`
   - `summary.csv`
   - `summary.json`
   - `method_summary.csv`
@@ -58,6 +59,8 @@ Run `git rev-parse HEAD` after the final status commit for the exact commit.
   - `memory_update_error`
   - `policy_application_error`
   - `candidate_coverage_error`
+- Lightweight LLaMA-Factory/DPO bridge rows with `conversations`, `chosen`,
+  `rejected`, `score_delta`, and source metadata.
 - Pytest regression coverage for CritiqueScope and CritiqueWorld.
 - Documentation:
   - `docs/driftaware_gimo.md`
@@ -75,8 +78,8 @@ evaluation, and not complete causal inference.
 | --- | --- | ---: | --- |
 | Memory baseline deterministic | SMOKE_TEST_ONLY | 150 rows | `outputs/memory_baselines` |
 | Memory baseline noisy | SMOKE_TEST_ONLY | 75 rows | `outputs/memory_baselines_noisy` |
-| CritiqueWorld oracle | SMOKE_TEST_ONLY | 175 summary rows; 1740 trajectory rows; 2850 branch rows; 355 DPO/CDPO pairs | `outputs/closed_loop_oracle` |
-| CritiqueWorld deterministic parser | SMOKE_TEST_ONLY | 105 summary rows; 1044 trajectory rows; 1710 branch rows; 249 DPO/CDPO pairs | `outputs/closed_loop_deterministic` |
+| CritiqueWorld oracle | SMOKE_TEST_ONLY | 175 summary rows; 1740 trajectory rows; 2850 branch rows; 80 strict-positive raw pairs; 80 CDPO bridge pairs | `outputs/closed_loop_oracle` |
+| CritiqueWorld deterministic parser | SMOKE_TEST_ONLY | 105 summary rows; 1044 trajectory rows; 1710 branch rows; 27 strict-positive raw pairs; 27 CDPO bridge pairs | `outputs/closed_loop_deterministic` |
 
 ## Actual Closed-Loop Result Snapshot
 
@@ -142,16 +145,16 @@ effectiveness.
 | `git log --oneline --decorate -n 15` | PASS | Verified current history. |
 | `pytest -q tests/test_critique_world.py` | PASS | 12 CritiqueWorld tests passed. |
 | `pytest -q` | PASS | 27 tests passed. |
-| `python -B -m user_simulator.evaluation.run_closed_loop_benchmark --modes none flat structured time_decay critiquescope --scenarios all --seeds 0 1 2 3 4 --max-turns 12 --top-k 5 --parser-mode oracle --output-dir outputs\closed_loop_oracle` | PASS | 175 summary rows, 1740 trajectory rows, 2850 branch rows, 355 pairs. |
-| `python -B -m user_simulator.evaluation.run_closed_loop_benchmark --modes none flat structured time_decay critiquescope --scenarios all --seeds 0 1 2 --max-turns 12 --top-k 5 --parser-mode deterministic --output-dir outputs\closed_loop_deterministic` | PASS | 105 summary rows, 1044 trajectory rows, 1710 branch rows, 249 pairs. |
+| `python -B -m user_simulator.evaluation.run_closed_loop_benchmark --modes none flat structured time_decay critiquescope --scenarios all --seeds 0 1 2 3 4 --max-turns 12 --top-k 5 --parser-mode oracle --output-dir outputs\closed_loop_oracle` | PASS | 175 summary rows, 1740 trajectory rows, 2850 branch rows, 80 strict-positive raw pairs, 80 CDPO bridge pairs. |
+| `python -B -m user_simulator.evaluation.run_closed_loop_benchmark --modes none flat structured time_decay critiquescope --scenarios all --seeds 0 1 2 --max-turns 12 --top-k 5 --parser-mode deterministic --output-dir outputs\closed_loop_deterministic` | PASS | 105 summary rows, 1044 trajectory rows, 1710 branch rows, 27 strict-positive raw pairs, 27 CDPO bridge pairs. |
 | `python -m compileall user_simulator` | PASS | Bytecode side effects cleaned from the worktree. |
 | `git diff --check` | PASS | Only Windows CRLF conversion warnings were reported. |
 
 ## Next Priorities
 
 1. Connect real GIMO rollout logs to the CritiqueWorld branch schema.
-2. Convert exported `dpo_pairs.jsonl` into the exact LLaMA-Factory/GIMO CDPO
-   data format.
+2. Harden `cdpo_pairs.jsonl` into the exact dataset schema selected for the
+   final LLaMA-Factory/GIMO CDPO training recipe.
 3. Add scenario coverage for noisy closed-loop ambiguity.
 4. Run `openai_compatible` parser mode once API configuration is available.
 5. Run full SFT/GPE/HAP/CDPO after GPU, model, and data paths are configured.

@@ -5,4 +5,4 @@
 - Proxy: controlled counterfactual rollout proxy
 - Trajectories: `1044` rows
 - Branch rollouts: `1710` rows
-- DPO/CDPO pairs: `249` rows
+- DPO/CDPO pairs: `27` rows
