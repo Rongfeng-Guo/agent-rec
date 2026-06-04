@@ -124,6 +124,14 @@ Run without API keys:
 
 ```bash
 python -B -m user_simulator.evaluation.critique_scope_eval
+python -B -m user_simulator.evaluation.critique_scope_eval --scenario-set noisy
+```
+
+Validate scenario schemas:
+
+```bash
+python -B -m user_simulator.evaluation.validate_critique_scenarios --scenario-set deterministic
+python -B -m user_simulator.evaluation.validate_critique_scenarios --scenario-set noisy
 ```
 
 Parse feedback with the deterministic fallback:

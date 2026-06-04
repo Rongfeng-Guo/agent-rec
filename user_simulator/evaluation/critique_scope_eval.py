@@ -17,6 +17,9 @@ from typing import Dict, Iterable, List
 from user_simulator.state.critique_scope import CritiqueScopeMemory
 
 
+SCENARIO_DIR = Path(__file__).resolve().parent / "scenarios"
+
+
 DEFAULT_SCENARIOS = [
     {
         "id": "temporary_ufc_fatigue",
@@ -180,10 +183,17 @@ DEFAULT_SCENARIOS = [
 ]
 
 
-def load_scenarios(path: str | None) -> List[dict]:
-    if not path:
+def load_scenarios(path: str | None = None, scenario_set: str = "deterministic") -> List[dict]:
+    if path:
+        return load_scenarios_from_path(Path(path))
+    if scenario_set == "deterministic":
         return DEFAULT_SCENARIOS
-    scenario_path = Path(path)
+    if scenario_set == "noisy":
+        return load_scenarios_from_path(SCENARIO_DIR / "noisy_critique_scenarios.jsonl")
+    raise ValueError(f"Unsupported scenario set: {scenario_set}")
+
+
+def load_scenarios_from_path(scenario_path: Path) -> List[dict]:
     if scenario_path.suffix == ".jsonl":
         with scenario_path.open("r", encoding="utf-8") as file:
             return [json.loads(line) for line in file if line.strip()]
@@ -324,14 +334,17 @@ def run_benchmark(scenarios: List[dict]) -> Dict[str, dict]:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--scenarios", help="Optional JSON/JSONL critique scenarios.")
+    parser.add_argument("--scenario-set", default="deterministic", choices=["deterministic", "noisy"])
     parser.add_argument("--output", help="Optional path to save metrics as JSON.")
     args = parser.parse_args()
 
-    results = run_benchmark(load_scenarios(args.scenarios))
+    results = run_benchmark(load_scenarios(args.scenarios, scenario_set=args.scenario_set))
     rendered = json.dumps(results, indent=2)
     print(rendered)
     if args.output:
-        Path(args.output).write_text(rendered + "\n", encoding="utf-8")
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(rendered + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

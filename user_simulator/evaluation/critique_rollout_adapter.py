@@ -15,6 +15,7 @@ from typing import List
 
 from user_simulator.evaluation.critique_scope_eval import DEFAULT_SCENARIOS
 from user_simulator.evaluation.critique_uplift_pairs import build_pairs
+from user_simulator.evaluation.validate_critique_scenarios import validate_scenario
 
 
 REQUIRED_BRANCHES = ["follow_value", "ignore_value", "over_apply_value"]
@@ -33,10 +34,9 @@ def load_rollouts(path: str | None) -> List[dict]:
 
 
 def validate_rollout(row: dict, line_no: int):
-    required = ["id", "critique_type", "utterance", "critiques", *REQUIRED_BRANCHES, "post_expiry_items"]
-    missing = [key for key in required if key not in row]
-    if missing:
-        raise ValueError(f"line {line_no}: missing required keys {missing}")
+    errors = validate_scenario(row, index=line_no)
+    if errors:
+        raise ValueError(f"line {line_no}: " + "; ".join(errors))
     for branch in REQUIRED_BRANCHES:
         if not isinstance(row[branch], list) or not all(isinstance(value, (int, float)) for value in row[branch]):
             raise ValueError(f"line {line_no}: {branch} must be a list of numbers")

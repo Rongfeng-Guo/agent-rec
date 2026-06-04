@@ -157,13 +157,13 @@ def write_outputs(rows: List[dict], output_dir: Path, args: argparse.Namespace):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--modes", nargs="+", default=["none", "flat", "structured", "time_decay", "critiquescope"])
-    parser.add_argument("--scenario-set", default="deterministic", choices=["deterministic"])
+    parser.add_argument("--scenario-set", default="deterministic", choices=["deterministic", "noisy"])
     parser.add_argument("--scenario-file")
     parser.add_argument("--seeds", nargs="+", type=int, default=[0])
     parser.add_argument("--output-dir", required=True)
     args = parser.parse_args()
 
-    scenarios = load_scenarios(args.scenario_file)
+    scenarios = load_scenarios(args.scenario_file, scenario_set=args.scenario_set)
     rows = []
     for seed in args.seeds:
         random.seed(seed)

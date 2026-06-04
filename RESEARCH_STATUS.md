@@ -30,6 +30,9 @@ Run `git rev-parse HEAD` for the exact current commit after status-file edits.
   - Session Context
   - Genuine Drift
   - Behavioral Rollback
+- Noisy/ambiguous critique scenario set under
+  `user_simulator/evaluation/scenarios/noisy_critique_scenarios.jsonl`.
+- Scenario schema validator for deterministic, noisy, and external JSONL inputs.
 - Counterfactual uplift preference-pair builder.
 - Critique parser with deterministic and optional OpenAI-compatible backend.
 - Rollout adapter that normalizes follow/ignore/over-apply utilities and emits
@@ -57,11 +60,16 @@ Run `git rev-parse HEAD` for the exact current commit after status-file edits.
 | `nvidia-smi` | PASS | RTX 4050 visible; not needed for Tier A. |
 | `python -B -m user_simulator.evaluation.drift_memory_eval` | PASS | Deterministic DriftAware smoke result printed. |
 | `python -B -m user_simulator.evaluation.critique_scope_eval` | PASS | Six deterministic critique scenarios evaluated. |
+| `python -B -m user_simulator.evaluation.critique_scope_eval --scenario-set noisy --output outputs\critique_scope_noisy\results.json` | PASS | Five noisy scenarios evaluated and saved. |
+| `python -B -m user_simulator.evaluation.validate_critique_scenarios --scenario-set deterministic --output outputs\scenario_validation\deterministic.json` | PASS | Six deterministic scenarios validated. |
+| `python -B -m user_simulator.evaluation.validate_critique_scenarios --scenario-set noisy --output outputs\scenario_validation\noisy.json` | PASS | Five noisy scenarios validated. |
 | `python -B -m user_simulator.evaluation.critique_parser --backend deterministic --output outputs\parser_smoke\parsed.jsonl` | PASS | Five feedback utterances parsed with deterministic fallback. |
 | `python -B -m user_simulator.evaluation.critique_rollout_adapter --output-dir outputs\rollout_adapter_smoke` | PASS | Six scenarios normalized and 12 uplift pairs written. |
 | `python -B -m user_simulator.evaluation.run_memory_baselines --modes none flat structured time_decay critiquescope --scenario-set deterministic --seeds 0 1 2 3 4 --output-dir outputs\memory_baselines` | PASS | 150 rows written. |
 | `python -B -m user_simulator.evaluation.summarize_memory_baselines --input outputs\memory_baselines\summary.csv --output-dir outputs\memory_baselines\aggregate` | PASS | Five method summaries, method-scenario summaries, and LaTeX table written. |
-| `pytest -q` | FAIL then PASS | First failed by collecting LLaMA-Factory tests without `transformers`, `accelerate`, and `datasets`; added `pytest.ini`, then 14 tests passed. |
+| `python -B -m user_simulator.evaluation.run_memory_baselines --modes none flat structured time_decay critiquescope --scenario-set noisy --seeds 0 1 2 --output-dir outputs\memory_baselines_noisy` | PASS | 75 noisy-scenario rows written. |
+| `python -B -m user_simulator.evaluation.summarize_memory_baselines --input outputs\memory_baselines_noisy\summary.csv --output-dir outputs\memory_baselines_noisy\aggregate` | PASS | Noisy method summaries and LaTeX table written. |
+| `pytest -q` | FAIL then PASS | First failed by collecting LLaMA-Factory tests without `transformers`, `accelerate`, and `datasets`; added `pytest.ini`, then 15 tests passed. |
 | `python -m compileall user_simulator` | PASS | Bytecode side effects cleaned/restored. |
 | `git diff --check` | PASS | No whitespace errors. |
 
@@ -88,6 +96,18 @@ outputs/rollout_adapter_smoke/
   adapter_metadata.json
   critique_pairs.jsonl
   normalized_scenarios.jsonl
+outputs/memory_baselines_noisy/
+  README.md
+  run_metadata.json
+  runs.jsonl
+  summary.csv
+  summary.json
+  aggregate/
+outputs/scenario_validation/
+  deterministic.json
+  noisy.json
+outputs/critique_scope_noisy/
+  results.json
 ```
 
 Run metadata:

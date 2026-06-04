@@ -8,7 +8,9 @@ from user_simulator.evaluation.critique_scope_eval import (
 from user_simulator.evaluation.critique_uplift_pairs import build_pairs
 from user_simulator.evaluation.critique_parser import parse_deterministic
 from user_simulator.evaluation.critique_rollout_adapter import load_rollouts
+from user_simulator.evaluation.critique_scope_eval import load_scenarios
 from user_simulator.evaluation.summarize_memory_baselines import aggregate
+from user_simulator.evaluation.validate_critique_scenarios import validate_scenarios
 from user_simulator.state.critique_scope import CritiqueScopeMemory
 from user_simulator.state.critique_scope_memory import CritiqueScopeMemory as CompatMemory
 
@@ -99,6 +101,12 @@ def test_rollout_adapter_loads_default_scenarios():
     scenarios = load_rollouts(None)
     assert len(scenarios) >= 6
     assert all("follow_value" in scenario for scenario in scenarios)
+
+
+def test_noisy_scenario_set_validates():
+    scenarios = load_scenarios(scenario_set="noisy")
+    assert len(scenarios) >= 5
+    assert validate_scenarios(scenarios) == []
 
 
 def test_summary_aggregation_groups_by_method():

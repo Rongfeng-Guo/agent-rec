@@ -53,6 +53,12 @@ across seeds.
 ```bash
 python -B -m user_simulator.evaluation.drift_memory_eval
 python -B -m user_simulator.evaluation.critique_scope_eval
+python -B -m user_simulator.evaluation.validate_critique_scenarios \
+  --scenario-set deterministic \
+  --output outputs/scenario_validation/deterministic.json
+python -B -m user_simulator.evaluation.validate_critique_scenarios \
+  --scenario-set noisy \
+  --output outputs/scenario_validation/noisy.json
 python -B -m user_simulator.evaluation.critique_parser \
   --backend deterministic \
   --output outputs/parser_smoke/parsed.jsonl
@@ -66,6 +72,14 @@ python -B -m user_simulator.evaluation.run_memory_baselines \
 python -B -m user_simulator.evaluation.summarize_memory_baselines \
   --input outputs/memory_baselines/summary.csv \
   --output-dir outputs/memory_baselines/aggregate
+python -B -m user_simulator.evaluation.run_memory_baselines \
+  --modes none flat structured time_decay critiquescope \
+  --scenario-set noisy \
+  --seeds 0 1 2 \
+  --output-dir outputs/memory_baselines_noisy
+python -B -m user_simulator.evaluation.summarize_memory_baselines \
+  --input outputs/memory_baselines_noisy/summary.csv \
+  --output-dir outputs/memory_baselines_noisy/aggregate
 pytest -q tests/test_critique_scope.py
 ```
 
@@ -132,6 +146,22 @@ outputs/memory_baselines/
     method_scenario_summary.csv
     method_scenario_summary.json
     method_summary.tex
+outputs/memory_baselines_noisy/
+  runs.jsonl
+  summary.csv
+  summary.json
+  run_metadata.json
+  README.md
+  aggregate/
+outputs/parser_smoke/
+  parsed.jsonl
+outputs/rollout_adapter_smoke/
+  adapter_metadata.json
+  critique_pairs.jsonl
+  normalized_scenarios.jsonl
+outputs/scenario_validation/
+  deterministic.json
+  noisy.json
 ```
 
 ## Reproducibility
