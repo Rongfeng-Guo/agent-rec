@@ -2,6 +2,7 @@ import json
 import logging
 from model.model import OpenAIClient
 from .state.dialogue_history import DialogueHistory
+from .state.structured_memory import StructuredMemory
 from utils import load_config, load_jsonl, load_json
 from user_simulator.prompts import recommender_rater_template, policy_rater_template, expression_rater_template, policy_selector_template, ask_recommendation_template, response_to_clarification_template, recommendation_feedback_template, end_conversation_template
 
@@ -18,7 +19,15 @@ LOGGER = logging.getLogger("UserSimulator")
 
 class UserSimulator:
     """整合用户记忆管理和动作生成逻辑"""
-    def __init__(self, persona: dict, item: dict, openai_client: OpenAIClient, formats: dict, domain: str):
+    def __init__(
+        self,
+        persona: dict,
+        item: dict,
+        openai_client: OpenAIClient,
+        formats: dict,
+        domain: str,
+        memory_mode: str = "none",
+    ):
         self.raw_history = []  # 保存所有交互历史的原始数据
         self.dialogue_history = DialogueHistory()  # 保存处理后的对话历史
         self.persona = persona  # 用户 Persona
@@ -26,10 +35,23 @@ class UserSimulator:
         self.openai_client = openai_client  # OpenAI 客户端
         self.domain = domain  # 对话领域
         self.formats = formats  # 格式
+        self.memory_mode = memory_mode
+        self.structured_memory = StructuredMemory() if memory_mode == "structured" else None
+
+    def _decorate_history_with_memory(self, dialogue_history: str) -> str:
+        if self.structured_memory is None:
+            return dialogue_history
+        memory_context = self.structured_memory.to_prompt_context()
+        return f"{memory_context}\n\nDialogue history:\n{dialogue_history}"
+
+    def observe_user_response(self, user_response: str, memory_updates=None):
+        if self.structured_memory is not None:
+            self.structured_memory.apply_turn(user_response, updates=memory_updates)
 
     def generate_user_policy(self, dialogue_history: str, last_turn_response: str):
         """生成用户策略"""
         try:
+            dialogue_history = self._decorate_history_with_memory(dialogue_history)
             def _build_policy_prompt():
                 prompt = policy_selector_template.format(
                     domain=self.domain,
@@ -55,6 +77,7 @@ class UserSimulator:
     def generate_user_response(self, user_policy, dialogue_history: str, last_turn_response: str):
         """生成用户回复"""
         try:
+            dialogue_history = self._decorate_history_with_memory(dialogue_history)
             def _build_ask_recommendation_prompt():
                 prompt = ask_recommendation_template.format(
                     domain=self.domain,
@@ -123,6 +146,7 @@ class UserSimulator:
 
     def generate_user_rater(self, last_user_response: str, dialogue_history: str, last_turn_response: str):
         try:
+            dialogue_history = self._decorate_history_with_memory(dialogue_history)
             def _build_recommendation_rater_prompt():
                 prompt = recommender_rater_template.format(
                     domain=self.domain,
@@ -203,7 +227,17 @@ class UserSimulator:
 
 class UserAgentEnv:
     """管理整个用户模拟环境，包含对话历史的管理"""
-    def __init__(self, persona_path, user_id, item_id, config_path, format_path, domain, model_type):
+    def __init__(
+        self,
+        persona_path,
+        user_id,
+        item_id,
+        config_path,
+        format_path,
+        domain,
+        model_type,
+        memory_mode="none",
+    ):
         try:
             # 加载用户 persona 数据和物品数据
             self.persona_item = load_jsonl(persona_path)
@@ -234,6 +268,7 @@ class UserAgentEnv:
                 openai_client=self.openai_client,
                 formats=self.formats,
                 domain=domain,
+                memory_mode=memory_mode,
             )
         except Exception as e:
             LOGGER.error(f"Error initializing UserAgentEnv: {e}")
@@ -252,6 +287,8 @@ class UserAgentEnv:
 
             # 清空对话历史
             self.dialogue_history.clear_history()
+            if self.user_simulator.structured_memory is not None:
+                self.user_simulator.structured_memory.reset()
 
             LOGGER.info("Environment reset successfully.")
         except Exception as e:
@@ -261,6 +298,7 @@ class UserAgentEnv:
     def add_user_message(self, message: str):
         """添加用户消息到对话历史"""
         self.dialogue_history.add_user_message(message)
+        self.user_simulator.observe_user_response(message)
         LOGGER.debug(f"Added user message: {message}")
 
     def add_assistant_message(self, message: str):

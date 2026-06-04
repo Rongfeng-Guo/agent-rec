@@ -128,6 +128,42 @@ bash main.sh
 bash main_lora.sh
 ```
 
+### DriftAware-GIMO: Structured Memory under Interest Drift
+
+We add an optional structured memory extension for studying preference drift in
+multi-turn recommendation. The memory explicitly separates positive
+preferences, negative preferences, hard constraints, and soft preferences, each
+with confidence and turn metadata. It supports retain, merge, overwrite, and
+forget operations so experiments can measure when an agent preserves useful
+history versus follows stale preferences.
+
+The default simulator behavior is unchanged. To enable the new memory state in
+the user simulator, instantiate `UserAgentEnv` with `memory_mode="structured"`.
+
+```
+env = UserAgentEnv(
+    persona_path="user_simulator/task/Yelp_test.jsonl",
+    user_id=0,
+    item_id=0,
+    config_path="config/api_config.json",
+    format_path="config",
+    domain="restaurant",
+    model_type="openai",
+    memory_mode="structured",
+)
+```
+
+Run the lightweight offline drift benchmark without an API key:
+
+```
+python -m user_simulator.evaluation.drift_memory_eval
+```
+
+This benchmark compares Full History, Summary Memory, Retrieval Memory, and
+Structured Memory using Recovery Turns, Stale Preference Violation Rate,
+Constraint Satisfaction Rate, Success@K, and Token Cost. See
+[`docs/driftaware_gimo.md`](docs/driftaware_gimo.md) for the full protocol.
+
 
 ## References
 1. Our evaluation method is based on [XueyangFeng/ECPO](https://github.com/XueyangFeng/ECPO).
