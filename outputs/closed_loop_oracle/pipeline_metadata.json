@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "created_at_utc": "2026-06-04T10:43:45.694899+00:00",
+  "created_at_utc": "2026-06-04T14:21:46.301984+00:00",
   "output_dir": "outputs\\closed_loop_oracle",
   "parser_mode": "oracle",
   "modes": [
@@ -25,15 +25,51 @@
   "branch_horizon": 5,
   "dev_fraction": 0.2,
   "counts": {
-    "trajectories": 1740,
-    "branch_rollouts": 2850,
-    "dpo_pairs": 80,
-    "cdpo_pairs": 80,
-    "cdpo_train": 64,
-    "cdpo_dev": 16
+    "trajectories": 2095,
+    "branch_rollouts": 3375,
+    "dpo_pairs": 65,
+    "cdpo_pairs": 65,
+    "cdpo_train": 52,
+    "cdpo_dev": 13
   },
-  "unique_cdpo_ids": 80,
+  "unique_cdpo_ids": 65,
   "audit_errors": [],
+  "validity_gate": {
+    "timestamp_utc": "2026-06-04T14:21:45.660083+00:00",
+    "python_version": "3.12.3 | packaged by conda-forge | (main, Apr 15 2024, 18:20:11) [MSC v.1938 64 bit (AMD64)]",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "modes": [
+      "none",
+      "flat",
+      "structured",
+      "time_decay",
+      "critiquescope"
+    ],
+    "scenarios": [
+      "temporary_fatigue",
+      "stable_dislike",
+      "diversity_request",
+      "session_context",
+      "genuine_drift",
+      "behavioral_rollback",
+      "mixed_multi_turn"
+    ],
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "parser_mode": "oracle",
+    "max_turns": 12,
+    "top_k": 5,
+    "branch_horizon": 5,
+    "fail_on_critical_invariant": true,
+    "total_invariants": 100,
+    "failed_invariants": 0,
+    "critical_failed_invariants": 0
+  },
   "steps": [
     {
       "name": "benchmark",
@@ -119,6 +155,41 @@
         "outputs\\closed_loop_oracle",
         "--report-output",
         "outputs\\closed_loop_oracle\\closed_loop_report.md"
+      ]
+    },
+    {
+      "name": "run_validity_gate",
+      "returncode": 0,
+      "command": [
+        "C:\\Users\\grfpa\\Miniconda\\python.exe",
+        "-B",
+        "-m",
+        "user_simulator.evaluation.run_validity_gate",
+        "--output-dir",
+        "outputs\\closed_loop_oracle\\validity_gate",
+        "--parser-mode",
+        "oracle",
+        "--branch-horizon",
+        "5",
+        "--max-turns",
+        "12",
+        "--top-k",
+        "5",
+        "--modes",
+        "none",
+        "flat",
+        "structured",
+        "time_decay",
+        "critiquescope",
+        "--scenarios",
+        "all",
+        "--seeds",
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "--fail-on-critical-invariant"
       ]
     }
   ]

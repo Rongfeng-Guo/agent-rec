@@ -68,9 +68,15 @@ def stable_dislike() -> Scenario:
     return Scenario(
         name="stable_dislike",
         items=_catalog(),
-        initial_user_state=LatentUserState(stable_positive={"category": ["Science", "Politics"]}, stable_negative={"category": ["Politics"]}),
+        initial_user_state=LatentUserState(stable_positive={"category": ["Science", "Politics"]}),
         injected_events=[
-            {"turn": 1, "type": "critique", "utterance": "Please never recommend political content to me.", "critiques": [_critique("Politics", "filter", "stable dislike", "persistent", 0, "hard")]},
+            {
+                "turn": 1,
+                "type": "critique",
+                "utterance": "Please never recommend political content to me.",
+                "critiques": [_critique("Politics", "filter", "stable dislike", "persistent", 0, "hard")],
+                "state_update": {"stable_positive": {"category": ["Science"]}, "stable_negative": {"category": ["Politics"]}},
+            },
             {"turn": 5, "type": "session_reset"},
         ],
         expected_properties={"persistent_target": "Politics"},
@@ -153,7 +159,7 @@ def mixed_multi_turn() -> Scenario:
                 "critiques": [{"target": "family", "operation": "promote", "reason": "session context", "object_scope": "attribute", "temporal_scope": "session", "horizon": 3, "hardness": "soft", "confidence": 0.74, "promotion_condition": "never"}],
             },
             {
-                "turn": 8,
+                "turn": 7,
                 "type": "drift",
                 "utterance": "I do not want Windows anymore. Going forward, prioritize Mac laptops.",
                 "critiques": [_critique("Windows", "rollback", "genuine drift", "persistent", 0, "hard"), _critique("Mac", "promote", "genuine drift", "persistent", 0, "hard")],

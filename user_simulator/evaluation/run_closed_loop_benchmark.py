@@ -144,7 +144,7 @@ def apply_critiques(memory: Any, mode: str, critiques: Iterable[dict], utterance
                 critique["promotion_condition"] = "persistent_language"
 
     if mode == "critiquescope":
-        memory.apply_turn(utterance, critiques=critiques)
+        memory.apply_turn(utterance, critiques=critiques, current_turn=turn)
     elif mode == "structured":
         for critique in critiques:
             bucket = "hard" if critique.get("hardness") == "hard" or critique.get("operation") in {"filter", "rollback"} else "soft"
@@ -163,9 +163,11 @@ def apply_event_to_state(user_state: LatentUserState, event: dict):
         setattr(user_state, key, copy.deepcopy(value))
 
 
-def handle_behavioral_confirmation(memory: Any, mode: str, target: str):
+def handle_behavioral_confirmation(memory: Any, mode: str, user_state: LatentUserState, target: str):
     if mode == "critiquescope":
         memory.observe_positive_behavior(target)
+    if target:
+        user_state.category_exposure_counts[target] = max(0, user_state.category_exposure_counts.get(target, 0) - 2)
 
 
 def event_by_turn(scenario: Scenario) -> dict[int, list[dict]]:
@@ -202,6 +204,8 @@ def rollout(
         turn = start_turn + local_index
         if not user_state.active:
             break
+        if mode == "critiquescope":
+            memory.turn = turn
         before_state = user_state.snapshot()
         before_memory = memory_snapshot(memory, mode)
         ranked = rank_items(scenario.items, user_state, memory, mode, top_k, config)
@@ -245,11 +249,11 @@ def rollout(
                 if mode == "critiquescope":
                     memory.end_session()
             elif event.get("type") == "behavioral_confirmation":
-                handle_behavioral_confirmation(memory, mode, event.get("target", ""))
+                handle_behavioral_confirmation(memory, mode, user_state, event.get("target", ""))
                 action = {"action": "click", "item_id": f"confirm_{event.get('target')}", "category": event.get("target"), "utility": instant_utility, "critique": None}
 
-        if action.get("action") == "click" and mode == "critiquescope":
-            handle_behavioral_confirmation(memory, mode, action.get("category", ""))
+        if action.get("action") == "click" and mode == "critiquescope" and not generated_critique and not memory_update.get("applied"):
+            handle_behavioral_confirmation(memory, mode, user_state, action.get("category", ""))
         if mode == "critiquescope":
             memory.decay_fast_memory()
 
@@ -490,6 +494,9 @@ def main():
                         "ExpiredConstraintViolationRate": expired_violation_rate(rows),
                         "DriftRecoveryTurns": drift_recovery_turns(rows),
                         "RollbackAccuracy": rollback_accuracy(rows),
+                        "DuringHorizonUtility": during_horizon_utility(branches),
+                        "PostExpiryRecoveryUtility": post_expiry_recovery_utility(branches),
+                        "PostExpirySuppressionRegret": post_expiry_suppression_regret(branches),
                         "MemoryContaminationRate": memory_contamination_rate(rows),
                         "PromotionPrecision": promotion_precision(rows),
                         "PromotionRecall": promotion_recall(rows),
@@ -590,6 +597,93 @@ def rollback_accuracy(rows: list[dict]) -> float:
         if any(event.get("event") == "rollback_fast" for event in events):
             return 1.0
     return 0.0
+
+
+def _temporary_branch_groups(branch_rows: list[dict]) -> dict[str, dict[str, list[dict]]]:
+    groups: dict[str, dict[str, list[dict]]] = {}
+    for row in branch_rows:
+        snapshot = row.get("state_snapshot", {})
+        event = snapshot.get("event", {})
+        critiques = event.get("critiques", [])
+        if not critiques or not all(item.get("temporal_scope") != "persistent" for item in critiques):
+            continue
+        branch_id = row.get("branch_id")
+        branch = row.get("branch")
+        if not branch_id or not branch:
+            continue
+        groups.setdefault(branch_id, {}).setdefault(branch, []).append(row)
+    for branch_map in groups.values():
+        for rows in branch_map.values():
+            rows.sort(key=lambda row: row.get("turn", 0))
+    return groups
+
+
+def during_horizon_utility(branch_rows: list[dict]) -> float:
+    values = []
+    for branch_map in _temporary_branch_groups(branch_rows).values():
+        follow = branch_map.get("follow", [])
+        if not follow:
+            continue
+        snapshot = follow[0].get("state_snapshot", {})
+        event = snapshot.get("event", {})
+        horizon = max((item.get("horizon", 0) or 0) for item in event.get("critiques", []))
+        if horizon <= 0:
+            continue
+        values.append(
+            sum(
+                float(row.get("instant_utility", 0.0))
+                for row in follow
+                if 1 <= int(row.get("turn", 0)) - int(snapshot.get("turn", 0)) <= horizon
+            )
+        )
+    return sum(values) / max(1, len(values))
+
+
+def post_expiry_recovery_utility(branch_rows: list[dict]) -> float:
+    values = []
+    for branch_map in _temporary_branch_groups(branch_rows).values():
+        follow = branch_map.get("follow", [])
+        if not follow:
+            continue
+        snapshot = follow[0].get("state_snapshot", {})
+        event = snapshot.get("event", {})
+        horizon = max((item.get("horizon", 0) or 0) for item in event.get("critiques", []))
+        if horizon <= 0:
+            continue
+        values.append(
+            sum(
+                float(row.get("instant_utility", 0.0))
+                for row in follow
+                if int(row.get("turn", 0)) - int(snapshot.get("turn", 0)) > horizon
+            )
+        )
+    return sum(values) / max(1, len(values))
+
+
+def post_expiry_suppression_regret(branch_rows: list[dict]) -> float:
+    regrets = []
+    for branch_map in _temporary_branch_groups(branch_rows).values():
+        follow = branch_map.get("follow", [])
+        over = branch_map.get("over_apply", [])
+        if not follow or not over:
+            continue
+        snapshot = follow[0].get("state_snapshot", {})
+        event = snapshot.get("event", {})
+        horizon = max((item.get("horizon", 0) or 0) for item in event.get("critiques", []))
+        if horizon <= 0:
+            continue
+        follow_post = sum(
+            float(row.get("instant_utility", 0.0))
+            for row in follow
+            if int(row.get("turn", 0)) - int(snapshot.get("turn", 0)) > horizon
+        )
+        over_post = sum(
+            float(row.get("instant_utility", 0.0))
+            for row in over
+            if int(row.get("turn", 0)) - int(snapshot.get("turn", 0)) > horizon
+        )
+        regrets.append(follow_post - over_post)
+    return sum(regrets) / max(1, len(regrets))
 
 
 def memory_contamination_rate(rows: list[dict]) -> float:

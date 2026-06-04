@@ -115,12 +115,36 @@ def build_commands(args: argparse.Namespace, output_dir: Path) -> list[tuple[str
         "--report-output",
         str(output_dir / "closed_loop_report.md"),
     ]
-    return [
+    commands = [
         ("benchmark", benchmark),
         ("validate_cdpo_pairs", validation),
         ("build_cdpo_dataset_manifest", manifest),
         ("summarize_closed_loop_outputs", report),
     ]
+    if args.run_validity_gate:
+        validity_gate = [
+            python,
+            "-B",
+            "-m",
+            "user_simulator.evaluation.run_validity_gate",
+            "--output-dir",
+            str(output_dir / "validity_gate"),
+            "--parser-mode",
+            args.parser_mode,
+            "--branch-horizon",
+            str(args.branch_horizon),
+            "--max-turns",
+            str(args.max_turns),
+            "--top-k",
+            str(args.top_k),
+        ]
+        validity_gate = command_with_values(validity_gate, "--modes", args.modes)
+        validity_gate = command_with_values(validity_gate, "--scenarios", args.scenarios)
+        validity_gate = command_with_values(validity_gate, "--seeds", args.seeds)
+        if args.fail_on_critical_invariant:
+            validity_gate.append("--fail-on-critical-invariant")
+        commands.append(("run_validity_gate", validity_gate))
+    return commands
 
 
 def build_summary(output_dir: Path, args: argparse.Namespace, steps: list[dict]) -> dict:
@@ -135,6 +159,10 @@ def build_summary(output_dir: Path, args: argparse.Namespace, steps: list[dict])
     }
     rows = read_jsonl(output_dir / "cdpo_pairs.jsonl")
     unique_ids = len({row.get("id") for row in rows})
+    validity_metadata = None
+    validity_path = output_dir / "validity_gate" / "run_metadata.json"
+    if validity_path.exists():
+        validity_metadata = json.loads(validity_path.read_text(encoding="utf-8"))
     return {
         "status": audit["status"],
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -150,6 +178,7 @@ def build_summary(output_dir: Path, args: argparse.Namespace, steps: list[dict])
         "counts": counts,
         "unique_cdpo_ids": unique_ids,
         "audit_errors": audit["errors"],
+        "validity_gate": validity_metadata,
         "steps": steps,
     }
 
@@ -192,6 +221,8 @@ def main():
     parser.add_argument("--parser-mode", choices=["oracle", "deterministic", "openai_compatible"], default="oracle")
     parser.add_argument("--branch-horizon", type=int, default=5)
     parser.add_argument("--dev-fraction", type=float, default=0.2)
+    parser.add_argument("--run-validity-gate", action="store_true")
+    parser.add_argument("--fail-on-critical-invariant", action="store_true")
     parser.add_argument("--output-dir", required=True)
     args = parser.parse_args()
 

@@ -1,45 +1,48 @@
 {
   "status": "PASS",
-  "rows": 80,
+  "rows": 65,
   "errors": [],
   "error_count": 0,
-  "score_delta_min": 0.03399999999999981,
-  "score_delta_mean": 0.14682499999999987,
-  "score_delta_max": 0.30600000000000005,
+  "score_delta_min": 0.009999999999999787,
+  "score_delta_mean": 0.4013538461538458,
+  "score_delta_max": 1.0300000000000002,
   "by_method": {
     "critiquescope": 30,
-    "structured": 40,
-    "time_decay": 10
+    "structured": 9,
+    "time_decay": 26
   },
   "by_scenario": {
-    "behavioral_rollback": 15,
-    "mixed_multi_turn": 25,
-    "session_context": 25,
-    "temporary_fatigue": 15
+    "behavioral_rollback": 5,
+    "diversity_request": 20,
+    "genuine_drift": 1,
+    "mixed_multi_turn": 17,
+    "session_context": 5,
+    "temporary_fatigue": 17
   },
   "by_rejected_branch": {
-    "ignore": 30,
-    "over_apply": 50
+    "ignore": 36,
+    "over_apply": 29
   },
   "by_method_scenario": {
     "critiquescope": {
-      "behavioral_rollback": 5,
+      "diversity_request": 10,
       "mixed_multi_turn": 10,
-      "session_context": 10,
-      "temporary_fatigue": 5
+      "temporary_fatigue": 10
     },
     "structured": {
-      "behavioral_rollback": 5,
-      "mixed_multi_turn": 15,
-      "session_context": 10,
-      "temporary_fatigue": 10
+      "mixed_multi_turn": 2,
+      "session_context": 5,
+      "temporary_fatigue": 2
     },
     "time_decay": {
       "behavioral_rollback": 5,
-      "session_context": 5
+      "diversity_request": 10,
+      "genuine_drift": 1,
+      "mixed_multi_turn": 5,
+      "temporary_fatigue": 5
     }
   },
-  "unique_id_count": 80,
+  "unique_id_count": 65,
   "duplicate_ids": [],
   "input": "outputs\\closed_loop_oracle\\cdpo_pairs.jsonl"
 }

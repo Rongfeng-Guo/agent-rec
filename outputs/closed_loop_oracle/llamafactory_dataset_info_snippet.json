@@ -11,7 +11,7 @@
       "source": "CritiqueWorld",
       "status": "SMOKE_TEST_ONLY",
       "proxy": "controlled counterfactual rollout proxy",
-      "row_count": 64,
+      "row_count": 52,
       "manifest": "cdpo_dataset_manifest.json",
       "split": "train"
     }
@@ -28,7 +28,7 @@
       "source": "CritiqueWorld",
       "status": "SMOKE_TEST_ONLY",
       "proxy": "controlled counterfactual rollout proxy",
-      "row_count": 16,
+      "row_count": 13,
       "manifest": "cdpo_dataset_manifest.json",
       "split": "dev"
     }

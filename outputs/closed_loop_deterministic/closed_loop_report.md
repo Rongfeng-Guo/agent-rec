@@ -4,7 +4,7 @@ This is a controlled counterfactual rollout proxy report. It is not human evalua
 
 - Output directory: `outputs\closed_loop_deterministic`
 - Parser mode: `deterministic`
-- Git commit recorded by run: `bdee4dfc0b0b7ed7d0b581efb4dc8cba28451b25`
+- Git commit recorded by run: `76491c69390e2ae549a33429b6539eb6b6be0624`
 - Audit status: `PASS`
 
 ## Dataset Gate
@@ -13,43 +13,44 @@ This is a controlled counterfactual rollout proxy report. It is not human evalua
 | dataset | closed_loop_deterministic_cdpo |
 | status | SMOKE_TEST_ONLY |
 | validation | PASS |
-| rows | 27 |
-| train/dev | 22/5 |
-| score_delta | 0.066 / 0.191 / 0.306 |
-| sha256 | 6e1091780d6350d2a6dda9ccc2e54b28525086923c954b0e1fc51a1060c9c509 |
+| rows | 29 |
+| train/dev | 23/6 |
+| score_delta | 0.034 / 0.466 / 1.030 |
+| sha256 | f6bd6f9e0d04853e886a93ef7fc965e463d01ac3679a279c9279c55e84a08748 |
 
 ## Output Counts
 | Artifact | Rows |
 | --- | --- |
 | summary_rows | 105 |
-| trajectory_rows | 1044 |
-| branch_rows | 1710 |
-| dpo_pairs | 27 |
-| cdpo_pairs | 27 |
-| cdpo_train | 22 |
-| cdpo_dev | 5 |
+| trajectory_rows | 1257 |
+| branch_rows | 2025 |
+| dpo_pairs | 29 |
+| cdpo_pairs | 29 |
+| cdpo_train | 23 |
+| cdpo_dev | 6 |
 
 ## Method Summary
 | Method | CumulativeUtility_mean | ClickRate_mean | InstructionUplift@H_mean | OverCorrectionRegret@H_mean | ScopeClassificationAccuracy_mean | parser_scope_error_mean | memory_update_error_mean | candidate_coverage_error_mean |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| critiquescope | 11.087 | 0.707 | -0.004 | 0.061 | 0.883 | 0.117 | 0.016 | 0.070 |
-| flat | 10.980 | 0.723 | -0.064 | 0.000 | 0.881 | 0.119 | 0.000 | 0.070 |
-| none | 11.087 | 0.707 | 0.000 | 0.000 | 0.883 | 0.117 | 0.000 | 0.070 |
-| structured | 11.072 | 0.715 | 0.029 | 0.094 | 0.878 | 0.122 | 0.000 | 0.070 |
-| time_decay | 11.095 | 0.719 | 0.022 | 0.000 | 0.884 | 0.116 | 0.000 | 0.070 |
+| critiquescope | 21.474 | 0.996 | -0.412 | 0.067 | 0.905 | 0.095 | 0.000 | 0.060 |
+| flat | 14.403 | 0.956 | -0.104 | 0.000 | 0.905 | 0.095 | 0.000 | 0.060 |
+| none | 14.691 | 0.960 | 0.000 | 0.000 | 0.905 | 0.095 | 0.000 | 0.060 |
+| structured | 14.192 | 0.865 | -0.135 | -0.031 | 0.904 | 0.096 | 0.000 | 0.060 |
+| time_decay | 15.451 | 0.972 | 0.318 | 0.142 | 0.905 | 0.095 | 0.000 | 0.060 |
 
 ## Pair Distribution By Rejected Branch
 | Rejected Branch | Rows |
 | --- | --- |
-| ignore | 9 |
-| over_apply | 18 |
+| ignore | 21 |
+| over_apply | 8 |
 
 ## Pair Distribution By Scenario
 | Scenario | Rows |
 | --- | --- |
-| behavioral_rollback | 9 |
-| mixed_multi_turn | 9 |
-| temporary_fatigue | 9 |
+| behavioral_rollback | 3 |
+| diversity_request | 12 |
+| mixed_multi_turn | 7 |
+| temporary_fatigue | 7 |
 
 ## Audit Errors
 - none

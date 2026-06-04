@@ -1,0 +1,36 @@
+{
+  "timestamp_utc": "2026-06-04T14:19:06.471261+00:00",
+  "python_version": "3.12.3 | packaged by conda-forge | (main, Apr 15 2024, 18:20:11) [MSC v.1938 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "modes": [
+    "none",
+    "flat",
+    "structured",
+    "time_decay",
+    "critiquescope"
+  ],
+  "scenarios": [
+    "temporary_fatigue",
+    "stable_dislike",
+    "diversity_request",
+    "session_context",
+    "genuine_drift",
+    "behavioral_rollback",
+    "mixed_multi_turn"
+  ],
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "parser_mode": "oracle",
+  "max_turns": 12,
+  "top_k": 5,
+  "branch_horizon": 5,
+  "fail_on_critical_invariant": true,
+  "total_invariants": 100,
+  "failed_invariants": 0,
+  "critical_failed_invariants": 0
+}
