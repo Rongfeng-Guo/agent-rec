@@ -164,6 +164,47 @@ Structured Memory using Recovery Turns, Stale Preference Violation Rate,
 Constraint Satisfaction Rate, Success@K, and Token Cost. See
 [`docs/driftaware_gimo.md`](docs/driftaware_gimo.md) for the full protocol.
 
+### CritiqueScope-GIMO: Scope-Aware Feedback Interventions
+
+We also add a stronger research extension: natural-language feedback is treated
+as an exposure-conditioned critique rather than a durable preference label by
+default. For example, "too much UFC lately" should temporarily attenuate UFC
+recommendations, while "never recommend political content" should become a
+persistent filter.
+
+`CritiqueScopeMemory` maintains two channels:
+
+- Fast Memory: temporary critique interventions, fatigue, session context, and
+  slate-level diversity requests.
+- Slow Memory: durable constraints and preferences promoted only after explicit
+  persistent language or repeated supporting evidence.
+
+Enable it with `memory_mode="critiquescope"`:
+
+```
+env = UserAgentEnv(
+    persona_path="user_simulator/task/Yelp_test.jsonl",
+    user_id=0,
+    item_id=0,
+    config_path="config/api_config.json",
+    format_path="config",
+    domain="restaurant",
+    model_type="openai",
+    memory_mode="critiquescope",
+)
+```
+
+Run the diagnostic benchmark:
+
+```
+python -B -m user_simulator.evaluation.critique_scope_eval
+```
+
+The benchmark reports Instruction Uplift, Over-Application Regret,
+Over-Correction Regret, Memory Contamination Rate, and Token Cost. See
+[`docs/critiquescope_gimo.md`](docs/critiquescope_gimo.md) for the schema and
+experimental protocol.
+
 
 ## References
 1. Our evaluation method is based on [XueyangFeng/ECPO](https://github.com/XueyangFeng/ECPO).

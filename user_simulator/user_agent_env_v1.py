@@ -1,6 +1,7 @@
 import json
 import logging
 from model.model import OpenAIClient
+from .state.critique_scope import CritiqueScopeMemory
 from .state.dialogue_history import DialogueHistory
 from .state.structured_memory import StructuredMemory
 from utils import load_config, load_jsonl, load_json
@@ -37,14 +38,21 @@ class UserSimulator:
         self.formats = formats  # 格式
         self.memory_mode = memory_mode
         self.structured_memory = StructuredMemory() if memory_mode == "structured" else None
+        self.critique_memory = CritiqueScopeMemory() if memory_mode == "critiquescope" else None
 
     def _decorate_history_with_memory(self, dialogue_history: str) -> str:
-        if self.structured_memory is None:
+        memory_context = None
+        if self.critique_memory is not None:
+            memory_context = self.critique_memory.to_prompt_context()
+        elif self.structured_memory is not None:
+            memory_context = self.structured_memory.to_prompt_context()
+        if memory_context is None:
             return dialogue_history
-        memory_context = self.structured_memory.to_prompt_context()
         return f"{memory_context}\n\nDialogue history:\n{dialogue_history}"
 
-    def observe_user_response(self, user_response: str, memory_updates=None):
+    def observe_user_response(self, user_response: str, memory_updates=None, critiques=None):
+        if self.critique_memory is not None:
+            self.critique_memory.apply_turn(user_response, critiques=critiques)
         if self.structured_memory is not None:
             self.structured_memory.apply_turn(user_response, updates=memory_updates)
 
@@ -287,6 +295,8 @@ class UserAgentEnv:
 
             # 清空对话历史
             self.dialogue_history.clear_history()
+            if self.user_simulator.critique_memory is not None:
+                self.user_simulator.critique_memory.reset()
             if self.user_simulator.structured_memory is not None:
                 self.user_simulator.structured_memory.reset()
 
