@@ -248,8 +248,8 @@ python -B -m user_simulator.evaluation.run_closed_loop_benchmark \
 
 Outputs include trajectory JSONL, branch rollout JSONL, raw DPO-style
 preference pairs, a lightweight `cdpo_pairs.jsonl` bridge for later
-LLaMA-Factory/GIMO formatting, summary CSV/JSON, method-level aggregates, and a
-LaTeX table. The branch metrics should be described as a controlled
+LLaMA-Factory/GIMO formatting, `cdpo_validation.json`, summary CSV/JSON,
+method-level aggregates, and a LaTeX table. The branch metrics should be described as a controlled
 counterfactual rollout proxy, not as complete causal inference. See
 [`docs/critique_world.md`](docs/critique_world.md).
 

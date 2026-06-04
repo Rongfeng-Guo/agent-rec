@@ -1,0 +1,39 @@
+{
+  "status": "PASS",
+  "rows": 27,
+  "errors": [],
+  "error_count": 0,
+  "score_delta_min": 0.06599999999999984,
+  "score_delta_mean": 0.19133333333333327,
+  "score_delta_max": 0.30600000000000005,
+  "by_method": {
+    "critiquescope": 9,
+    "structured": 15,
+    "time_decay": 3
+  },
+  "by_scenario": {
+    "behavioral_rollback": 9,
+    "mixed_multi_turn": 9,
+    "temporary_fatigue": 9
+  },
+  "by_rejected_branch": {
+    "ignore": 9,
+    "over_apply": 18
+  },
+  "by_method_scenario": {
+    "critiquescope": {
+      "behavioral_rollback": 3,
+      "mixed_multi_turn": 3,
+      "temporary_fatigue": 3
+    },
+    "structured": {
+      "behavioral_rollback": 3,
+      "mixed_multi_turn": 6,
+      "temporary_fatigue": 6
+    },
+    "time_decay": {
+      "behavioral_rollback": 3
+    }
+  },
+  "input": "outputs\\closed_loop_deterministic\\cdpo_pairs.jsonl"
+}

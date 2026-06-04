@@ -116,6 +116,12 @@ python -B -m user_simulator.evaluation.run_closed_loop_benchmark \
   --top-k 5 \
   --parser-mode deterministic \
   --output-dir outputs/closed_loop_deterministic
+python -B -m user_simulator.evaluation.validate_cdpo_pairs \
+  --input outputs/closed_loop_oracle/cdpo_pairs.jsonl \
+  --output outputs/closed_loop_oracle/cdpo_validation.json
+python -B -m user_simulator.evaluation.validate_cdpo_pairs \
+  --input outputs/closed_loop_deterministic/cdpo_pairs.jsonl \
+  --output outputs/closed_loop_deterministic/cdpo_validation.json
 ```
 
 ## Full Run
@@ -202,6 +208,7 @@ outputs/closed_loop_oracle/
   branch_rollouts.jsonl
   dpo_pairs.jsonl
   cdpo_pairs.jsonl
+  cdpo_validation.json
   summary.csv
   summary.json
   method_summary.csv

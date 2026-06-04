@@ -9,6 +9,7 @@ from user_simulator.evaluation.run_closed_loop_benchmark import (
     rollout,
     run_branch_rollouts,
 )
+from user_simulator.evaluation.validate_cdpo_pairs import validate_file
 from user_simulator.policies.memory_rerank_policy import rank_items
 from user_simulator.scenarios.closed_loop_scenarios import get_scenario
 from user_simulator.worlds.critique_world import CritiqueWorldConfig
@@ -200,6 +201,63 @@ def test_cdpo_pair_bridge_contains_training_fields(tmp_path):
     assert rows
     assert {"conversations", "chosen", "rejected", "score_delta", "metadata"} <= set(rows[0])
     assert rows[0]["metadata"]["format"] == "llamafactory_dpo_bridge"
+
+
+def test_cdpo_validator_accepts_exported_pairs(tmp_path):
+    from user_simulator.evaluation.run_closed_loop_benchmark import main
+    import sys
+
+    old_argv = sys.argv
+    sys.argv = [
+        "run_closed_loop_benchmark",
+        "--modes",
+        "critiquescope",
+        "--scenarios",
+        "temporary_fatigue",
+        "--seeds",
+        "0",
+        "--max-turns",
+        "4",
+        "--top-k",
+        "5",
+        "--parser-mode",
+        "oracle",
+        "--output-dir",
+        str(tmp_path),
+    ]
+    try:
+        main()
+    finally:
+        sys.argv = old_argv
+
+    result = validate_file(tmp_path / "cdpo_pairs.jsonl")
+    assert result["status"] == "PASS"
+    assert result["rows"] > 0
+    assert result["score_delta_min"] > 0
+
+
+def test_cdpo_validator_rejects_non_positive_delta(tmp_path):
+    row = {
+        "id": "bad",
+        "scenario": "temporary_fatigue",
+        "seed": 0,
+        "method": "critiquescope",
+        "parser_mode": "oracle",
+        "conversations": [{"from": "human", "value": "x"}],
+        "chosen": {"branch": "follow", "policy": "x", "trajectory": "x"},
+        "rejected": {"branch": "ignore", "policy": "y", "trajectory": "y"},
+        "score_delta": 0,
+        "metadata": {
+            "format": "llamafactory_dpo_bridge",
+            "source": "CritiqueWorld",
+            "proxy": "controlled counterfactual rollout proxy",
+        },
+    }
+    path = tmp_path / "bad.jsonl"
+    path.write_text(json.dumps(row) + "\n", encoding="utf-8")
+    result = validate_file(path)
+    assert result["status"] == "FAIL"
+    assert any("strictly positive" in error for error in result["errors"])
 
 
 def test_candidate_coverage_error_flags_missing_targets():

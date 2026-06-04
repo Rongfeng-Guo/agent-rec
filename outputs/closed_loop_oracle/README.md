@@ -6,3 +6,4 @@
 - Trajectories: `1740` rows
 - Branch rollouts: `2850` rows
 - DPO/CDPO pairs: `80` rows
+- CDPO bridge validation: `cdpo_validation.json`
