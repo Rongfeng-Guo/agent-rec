@@ -100,7 +100,7 @@ python -B -m user_simulator.evaluation.summarize_memory_baselines \
   --output-dir outputs/memory_baselines_noisy/aggregate
 pytest -q tests/test_critique_scope.py
 pytest -q tests/test_critique_world.py
-python -B -m user_simulator.evaluation.run_closed_loop_benchmark \
+python -B -m user_simulator.evaluation.run_closed_loop_pipeline \
   --modes none flat structured time_decay critiquescope \
   --scenarios all \
   --seeds 0 1 2 3 4 \
@@ -108,7 +108,7 @@ python -B -m user_simulator.evaluation.run_closed_loop_benchmark \
   --top-k 5 \
   --parser-mode oracle \
   --output-dir outputs/closed_loop_oracle
-python -B -m user_simulator.evaluation.run_closed_loop_benchmark \
+python -B -m user_simulator.evaluation.run_closed_loop_pipeline \
   --modes none flat structured time_decay critiquescope \
   --scenarios all \
   --seeds 0 1 2 \
@@ -116,32 +116,6 @@ python -B -m user_simulator.evaluation.run_closed_loop_benchmark \
   --top-k 5 \
   --parser-mode deterministic \
   --output-dir outputs/closed_loop_deterministic
-python -B -m user_simulator.evaluation.validate_cdpo_pairs \
-  --input outputs/closed_loop_oracle/cdpo_pairs.jsonl \
-  --output outputs/closed_loop_oracle/cdpo_validation.json
-python -B -m user_simulator.evaluation.validate_cdpo_pairs \
-  --input outputs/closed_loop_deterministic/cdpo_pairs.jsonl \
-  --output outputs/closed_loop_deterministic/cdpo_validation.json
-python -B -m user_simulator.evaluation.build_cdpo_dataset_manifest \
-  --input outputs/closed_loop_oracle/cdpo_pairs.jsonl \
-  --validation outputs/closed_loop_oracle/cdpo_validation.json \
-  --manifest-output outputs/closed_loop_oracle/cdpo_dataset_manifest.json \
-  --dataset-info-output outputs/closed_loop_oracle/llamafactory_dataset_info_snippet.json \
-  --train-output outputs/closed_loop_oracle/cdpo_train.jsonl \
-  --dev-output outputs/closed_loop_oracle/cdpo_dev.jsonl
-python -B -m user_simulator.evaluation.build_cdpo_dataset_manifest \
-  --input outputs/closed_loop_deterministic/cdpo_pairs.jsonl \
-  --validation outputs/closed_loop_deterministic/cdpo_validation.json \
-  --manifest-output outputs/closed_loop_deterministic/cdpo_dataset_manifest.json \
-  --dataset-info-output outputs/closed_loop_deterministic/llamafactory_dataset_info_snippet.json \
-  --train-output outputs/closed_loop_deterministic/cdpo_train.jsonl \
-  --dev-output outputs/closed_loop_deterministic/cdpo_dev.jsonl
-python -B -m user_simulator.evaluation.summarize_closed_loop_outputs \
-  --output-dir outputs/closed_loop_oracle \
-  --report-output outputs/closed_loop_oracle/closed_loop_report.md
-python -B -m user_simulator.evaluation.summarize_closed_loop_outputs \
-  --output-dir outputs/closed_loop_deterministic \
-  --report-output outputs/closed_loop_deterministic/closed_loop_report.md
 ```
 
 ## Full Run
@@ -239,6 +213,7 @@ outputs/closed_loop_oracle/
   method_summary.csv
   method_scenario_summary.csv
   run_metadata.json
+  pipeline_metadata.json
   tables.tex
 outputs/closed_loop_deterministic/
   same schema as closed_loop_oracle

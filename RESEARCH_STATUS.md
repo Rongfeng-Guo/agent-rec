@@ -76,6 +76,9 @@ Run `git rev-parse HEAD` after the final status commit for the exact commit.
   the manifest.
 - Closed-loop report generator that audits output consistency and emits a
   readable Markdown result report.
+- One-command closed-loop pipeline runner that chains benchmark execution, CDPO
+  validation, manifest/split materialization, report generation, and
+  `pipeline_metadata.json`.
 - Pytest regression coverage for CritiqueScope and CritiqueWorld.
 - Documentation:
   - `docs/driftaware_gimo.md`

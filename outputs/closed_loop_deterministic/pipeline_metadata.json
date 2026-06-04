@@ -1,0 +1,121 @@
+{
+  "status": "PASS",
+  "created_at_utc": "2026-06-04T10:43:49.916580+00:00",
+  "output_dir": "outputs\\closed_loop_deterministic",
+  "parser_mode": "deterministic",
+  "modes": [
+    "none",
+    "flat",
+    "structured",
+    "time_decay",
+    "critiquescope"
+  ],
+  "scenarios": [
+    "all"
+  ],
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "max_turns": 12,
+  "top_k": 5,
+  "branch_horizon": 5,
+  "dev_fraction": 0.2,
+  "counts": {
+    "trajectories": 1044,
+    "branch_rollouts": 1710,
+    "dpo_pairs": 27,
+    "cdpo_pairs": 27,
+    "cdpo_train": 22,
+    "cdpo_dev": 5
+  },
+  "unique_cdpo_ids": 27,
+  "audit_errors": [],
+  "steps": [
+    {
+      "name": "benchmark",
+      "returncode": 0,
+      "command": [
+        "C:\\Users\\grfpa\\Miniconda\\python.exe",
+        "-B",
+        "-m",
+        "user_simulator.evaluation.run_closed_loop_benchmark",
+        "--max-turns",
+        "12",
+        "--top-k",
+        "5",
+        "--parser-mode",
+        "deterministic",
+        "--branch-horizon",
+        "5",
+        "--output-dir",
+        "outputs\\closed_loop_deterministic",
+        "--modes",
+        "none",
+        "flat",
+        "structured",
+        "time_decay",
+        "critiquescope",
+        "--scenarios",
+        "all",
+        "--seeds",
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    {
+      "name": "validate_cdpo_pairs",
+      "returncode": 0,
+      "command": [
+        "C:\\Users\\grfpa\\Miniconda\\python.exe",
+        "-B",
+        "-m",
+        "user_simulator.evaluation.validate_cdpo_pairs",
+        "--input",
+        "outputs\\closed_loop_deterministic\\cdpo_pairs.jsonl",
+        "--output",
+        "outputs\\closed_loop_deterministic\\cdpo_validation.json"
+      ]
+    },
+    {
+      "name": "build_cdpo_dataset_manifest",
+      "returncode": 0,
+      "command": [
+        "C:\\Users\\grfpa\\Miniconda\\python.exe",
+        "-B",
+        "-m",
+        "user_simulator.evaluation.build_cdpo_dataset_manifest",
+        "--input",
+        "outputs\\closed_loop_deterministic\\cdpo_pairs.jsonl",
+        "--validation",
+        "outputs\\closed_loop_deterministic\\cdpo_validation.json",
+        "--manifest-output",
+        "outputs\\closed_loop_deterministic\\cdpo_dataset_manifest.json",
+        "--dataset-info-output",
+        "outputs\\closed_loop_deterministic\\llamafactory_dataset_info_snippet.json",
+        "--train-output",
+        "outputs\\closed_loop_deterministic\\cdpo_train.jsonl",
+        "--dev-output",
+        "outputs\\closed_loop_deterministic\\cdpo_dev.jsonl",
+        "--dev-fraction",
+        "0.2"
+      ]
+    },
+    {
+      "name": "summarize_closed_loop_outputs",
+      "returncode": 0,
+      "command": [
+        "C:\\Users\\grfpa\\Miniconda\\python.exe",
+        "-B",
+        "-m",
+        "user_simulator.evaluation.summarize_closed_loop_outputs",
+        "--output-dir",
+        "outputs\\closed_loop_deterministic",
+        "--report-output",
+        "outputs\\closed_loop_deterministic\\closed_loop_report.md"
+      ]
+    }
+  ]
+}

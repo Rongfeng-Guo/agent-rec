@@ -148,7 +148,12 @@ def deterministic_critique_for_slate(slate: Iterable[Item], user_state: LatentUs
     categories = [item.category for item in slate]
     if not categories:
         return None
-    most_common = max(set(categories), key=categories.count)
+    counts: dict[str, int] = {}
+    first_seen: dict[str, int] = {}
+    for index, category in enumerate(categories):
+        counts[category] = counts.get(category, 0) + 1
+        first_seen.setdefault(category, index)
+    most_common = max(counts, key=lambda category: (counts[category], -first_seen[category]))
     if user_state.category_exposure_counts.get(most_common, 0) >= 3:
         return {
             "utterance": f"I have seen too much {most_common} lately. Switch it up for a bit.",

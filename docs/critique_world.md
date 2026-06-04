@@ -132,10 +132,10 @@ Closed-loop outputs include:
 
 ## How to Run
 
-Oracle parser:
+Recommended full pipeline:
 
 ```bash
-python -B -m user_simulator.evaluation.run_closed_loop_benchmark \
+python -B -m user_simulator.evaluation.run_closed_loop_pipeline \
   --modes none flat structured time_decay critiquescope \
   --scenarios all \
   --seeds 0 1 2 3 4 \
@@ -145,10 +145,14 @@ python -B -m user_simulator.evaluation.run_closed_loop_benchmark \
   --output-dir outputs/closed_loop_oracle
 ```
 
+The pipeline runs the benchmark, validates `cdpo_pairs.jsonl`, materializes
+`cdpo_train.jsonl` / `cdpo_dev.jsonl`, builds the LLaMA-Factory dataset-info
+snippet, audits the output folder, and writes `pipeline_metadata.json`.
+
 Deterministic parser:
 
 ```bash
-python -B -m user_simulator.evaluation.run_closed_loop_benchmark \
+python -B -m user_simulator.evaluation.run_closed_loop_pipeline \
   --modes none flat structured time_decay critiquescope \
   --scenarios all \
   --seeds 0 1 2 \
@@ -158,7 +162,8 @@ python -B -m user_simulator.evaluation.run_closed_loop_benchmark \
   --output-dir outputs/closed_loop_deterministic
 ```
 
-Validate the CDPO bridge file before training:
+To debug individual stages, run the lower-level commands directly. Validate the
+CDPO bridge file before training:
 
 ```bash
 python -B -m user_simulator.evaluation.validate_cdpo_pairs \
@@ -208,6 +213,7 @@ method_scenario_summary.csv
 run_metadata.json
 tables.tex
 README.md
+pipeline_metadata.json
 ```
 
 ## Connecting Back to GIMO

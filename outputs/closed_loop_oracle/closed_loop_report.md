@@ -4,7 +4,7 @@ This is a controlled counterfactual rollout proxy report. It is not human evalua
 
 - Output directory: `outputs\closed_loop_oracle`
 - Parser mode: `oracle`
-- Git commit recorded by run: `5b037c7bdc03bc7ee56d5abf2f3ebdc67e337759`
+- Git commit recorded by run: `bdee4dfc0b0b7ed7d0b581efb4dc8cba28451b25`
 - Audit status: `PASS`
 
 ## Dataset Gate

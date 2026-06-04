@@ -16,10 +16,11 @@ from user_simulator.evaluation.run_closed_loop_benchmark import (
     rollout,
     run_branch_rollouts,
 )
+from user_simulator.evaluation.run_closed_loop_pipeline import main as run_pipeline_main
 from user_simulator.evaluation.validate_cdpo_pairs import validate_file
 from user_simulator.policies.memory_rerank_policy import rank_items
 from user_simulator.scenarios.closed_loop_scenarios import get_scenario
-from user_simulator.worlds.critique_world import CritiqueWorldConfig
+from user_simulator.worlds.critique_world import CritiqueWorldConfig, Item, LatentUserState, deterministic_critique_for_slate
 
 
 def slate(rows, turn):
@@ -418,3 +419,75 @@ def test_memory_update_error_is_reported_for_parser_miss():
     rows, *_ = run_scenario("genuine_drift", mode="critiquescope", parser_mode="deterministic", max_turns=4)
     assert any(row["generated_critique"] for row in rows)
     assert any("memory_update_error" in row for row in rows)
+
+
+def test_fatigue_critique_tie_breaks_by_slate_order():
+    slate = [
+        Item("windows_a", "Windows", {}, 0.8),
+        Item("mac_a", "Mac", {}, 0.8),
+        Item("mac_b", "Mac", {}, 0.8),
+        Item("windows_b", "Windows", {}, 0.8),
+    ]
+    state = LatentUserState(category_exposure_counts={"Windows": 4, "Mac": 4})
+    critique = deterministic_critique_for_slate(slate, state)
+    assert critique["critiques"][0]["target"] == "Windows"
+
+
+def test_closed_loop_pipeline_creates_gated_artifacts(tmp_path):
+    import sys
+
+    old_argv = sys.argv
+    sys.argv = [
+        "run_closed_loop_pipeline",
+        "--modes",
+        "critiquescope",
+        "--scenarios",
+        "temporary_fatigue",
+        "--seeds",
+        "0",
+        "--max-turns",
+        "4",
+        "--top-k",
+        "5",
+        "--parser-mode",
+        "oracle",
+        "--branch-horizon",
+        "3",
+        "--dev-fraction",
+        "0.5",
+        "--output-dir",
+        str(tmp_path),
+    ]
+    try:
+        run_pipeline_main()
+    finally:
+        sys.argv = old_argv
+
+    metadata = json.loads((tmp_path / "pipeline_metadata.json").read_text(encoding="utf-8"))
+    assert metadata["status"] == "PASS"
+    assert metadata["counts"]["cdpo_train"] + metadata["counts"]["cdpo_dev"] == metadata["counts"]["cdpo_pairs"]
+    assert metadata["unique_cdpo_ids"] == metadata["counts"]["cdpo_pairs"]
+    assert len(metadata["steps"]) == 4
+    assert (tmp_path / "closed_loop_report.md").exists()
+
+
+def test_closed_loop_pipeline_rejects_openai_compatible(tmp_path):
+    import sys
+
+    old_argv = sys.argv
+    sys.argv = [
+        "run_closed_loop_pipeline",
+        "--parser-mode",
+        "openai_compatible",
+        "--output-dir",
+        str(tmp_path),
+    ]
+    try:
+        try:
+            run_pipeline_main()
+        except SystemExit as exc:
+            assert "BLOCKED_NO_API_KEY" in str(exc)
+        else:
+            raise AssertionError("openai_compatible pipeline should be blocked without API config")
+    finally:
+        sys.argv = old_argv

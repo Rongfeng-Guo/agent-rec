@@ -223,6 +223,22 @@ counterfactual branch rollouts.
 Run the oracle closed-loop benchmark:
 
 ```
+python -B -m user_simulator.evaluation.run_closed_loop_pipeline \
+  --modes none flat structured time_decay critiquescope \
+  --scenarios all \
+  --seeds 0 1 2 3 4 \
+  --max-turns 12 \
+  --top-k 5 \
+  --parser-mode oracle \
+  --output-dir outputs/closed_loop_oracle
+```
+
+The pipeline command runs the benchmark, validates `cdpo_pairs.jsonl`, builds
+the dataset manifest and materialized train/dev split files, and writes
+`closed_loop_report.md`. The lower-level benchmark can still be run directly
+when debugging only the rollout stage:
+
+```
 python -B -m user_simulator.evaluation.run_closed_loop_benchmark \
   --modes none flat structured time_decay critiquescope \
   --scenarios all \
@@ -236,7 +252,7 @@ python -B -m user_simulator.evaluation.run_closed_loop_benchmark \
 Run the deterministic-parser variant:
 
 ```
-python -B -m user_simulator.evaluation.run_closed_loop_benchmark \
+python -B -m user_simulator.evaluation.run_closed_loop_pipeline \
   --modes none flat structured time_decay critiquescope \
   --scenarios all \
   --seeds 0 1 2 \

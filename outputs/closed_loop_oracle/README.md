@@ -10,3 +10,4 @@
 - CDPO dataset manifest: `cdpo_dataset_manifest.json`
 - LLaMA-Factory dataset-info snippet: `llamafactory_dataset_info_snippet.json`
 - Closed-loop report: `closed_loop_report.md`
+- Pipeline metadata: `pipeline_metadata.json`
