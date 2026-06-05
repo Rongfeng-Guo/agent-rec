@@ -6,7 +6,7 @@
 
 ## Current HEAD
 
-`d146e734931ad115c7bba142d0b51912c27cc921` at the start of the latest deterministic-parser alignment round.
+`5dc6f4688c51e6eafceb4747dcff29f0ed9980ab` after the real-rollout bridge and fixture-smoke round.
 
 ## COMPLETED
 
@@ -261,6 +261,12 @@ effectiveness.
 | `python -B -m user_simulator.evaluation.run_validity_gate --modes none flat structured time_decay critiquescope --scenarios all --seeds 0 1 2 --max-turns 12 --top-k 5 --parser-mode deterministic --output-dir outputs\\validity_gate_deterministic --fail-on-critical-invariant` | PASS | Deterministic gate passed with 60/60 invariants and 0 critical failures. |
 | `python -B -m user_simulator.evaluation.run_closed_loop_pipeline --modes none flat structured time_decay critiquescope --scenarios all --seeds 0 1 2 --max-turns 12 --top-k 5 --parser-mode deterministic --run-validity-gate --fail-on-critical-invariant --output-dir outputs\\closed_loop_deterministic` | PASS | Deterministic pipeline now passes fail-fast validity gate; 42 CDPO bridge pairs; train/dev 34/8. |
 | `python -B -m user_simulator.evaluation.critique_rollout_adapter --output-dir outputs\\rollout_adapter_smoke --fail-on-audit-error` | PASS | Rollout-adapter audit passed with 18/18 checks and 0 failures; normalized scenarios remain pair-export ready. |
+| `pytest -q tests/test_critique_scope.py` | PASS | 36 targeted bridge tests passed after recommend/ask/search coverage and generic fallback additions. |
+| `pytest -q` | PASS | 72 total tests passed after bridge/audit/materialization updates. |
+| `python -m compileall user_simulator` | PASS | Bytecode compile check passed. |
+| `bash scripts/run_fixture_rollout_bridge_smoke.sh` | PASS | 3 traces; 9 branch rows; 6 DPO pairs; 6 CDPO pairs; bridge audit PASS; dataset materialization PASS; LLaMA-Factory dry-run BLOCKED_MODEL_MISSING. |
+| `bash scripts/run_real_rollout_bridge.sh GPE_HAP outputs/real_gpe_hap_bridge` | BLOCKED_REAL_LOG_MISSING | No real GPE/HAP trace files were discovered in this checkout. |
+| `git diff --check` | PASS | No whitespace errors after the bridge round. |
 
 ## Next Priorities
 
