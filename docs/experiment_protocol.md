@@ -171,6 +171,7 @@ Real traces, when available:
 
 ```bash
 bash scripts/run_real_rollout_bridge.sh <TRACE_DIR_OR_FILE> <OUTPUT_DIR>
+bash scripts/server184/run_real_rollout_bridge.sh <TRACE_DIR_OR_FILE> <OUTPUT_DIR>
 ```
 
 When no real trace files are present, the bridge script reports
@@ -271,6 +272,12 @@ The adapter accepts both JSONL and JSON arrays, so the
 `*_refine_log_sample*.json` artifacts written by `GPE_HAP/rewrite_v3.py` can be
 fed directly without reshaping them first.
 
+The adapter can also be pointed at a directory. It will recursively discover
+rollout-like `.json` / `.jsonl` files, preserve each source filename in bridge
+metadata, and normalize nested `log` / `trace` / `record` wrappers plus common
+`combined_log` aliases such as `original_output`, `query_text`, `sample_id`,
+and `policy_output`.
+
 For convenience, `user_simulator.evaluation.export_gpe_hap_refine_logs` can
 discover those files in a directory and export adapter-ready JSONL plus
 branch-rollout/CDPO artifacts in one pass.
@@ -360,3 +367,21 @@ outputs/validity_gate/
 Every runner output includes command, timestamp, git commit, Python version,
 platform, seeds, scenario set, memory modes, run mode, dataset/model labels, and
 an environment summary.
+
+## Server184 GPU Smoke
+
+For the first real `GIMO` / `GPE_HAP` smoke on the target `184` machine:
+
+```bash
+source .env.server184.example
+bash scripts/server184/check_env.sh
+bash scripts/server184/discover_resources.sh
+bash scripts/server184/serve_vllm_single.sh
+bash scripts/server184/run_real_gimo_rollout_smoke.sh
+bash scripts/server184/run_real_rollout_bridge.sh \
+  outputs/server184_real_rollout_smoke/<TIMESTAMP>/refine_logs \
+  outputs/server184_real_rollout_bridge/<TIMESTAMP>
+```
+
+If the current host is not server 184, the environment report must stay at
+`NOT_ON_SERVER184`; do not relabel fixture smoke as a real GPU rollout.

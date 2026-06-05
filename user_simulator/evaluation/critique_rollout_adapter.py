@@ -30,6 +30,28 @@ VALUE_KEYS = {branch: f"{branch}_value" for branch in REQUIRED_BRANCHES}
 CRITIQUEWORLD_PROXY = "controlled counterfactual rollout proxy"
 GPE_HAP_PROXY = "gpe_hap_refinement_proxy"
 KNOWN_TASK_TYPES = {"recommend", "ask", "search"}
+TRACE_WRAPPER_KEYS = ("log", "trace", "record", "entry")
+TRACE_FIELD_ALIASES = {
+    "task_type": ["task_type", "task", "mode"],
+    "input": ["input", "instruction", "prompt", "query", "user_input"],
+    "original_response": ["original_response", "original_output", "response", "output"],
+    "ground_truth": ["ground_truth", "reference", "target", "target_output", "gold_response", "expected_output"],
+    "policy_improvement_output": ["policy_improvement_output", "refinement_output", "policy_output"],
+    "best_refinement": ["best_refinement", "best_output", "best_response"],
+    "is_original_best": ["is_original_best", "original_is_best"],
+    "sample_num": ["sample_num", "sample_id"],
+    "seed": ["seed"],
+    "id": ["id", "trace_id", "example_id", "request_id"],
+    "source_ref": ["source_ref", "source_id"],
+    "original_action": ["original_action", "action"],
+    "original_query": ["original_query", "query_text"],
+    "original_rank": ["original_rank", "rank"],
+    "refined_queries": ["refined_queries", "rewritten_queries"],
+    "refined_ranks": ["refined_ranks", "reranked_positions"],
+    "potential_reward_output": ["potential_reward_output", "reward_output"],
+    "eval_response": ["eval_response", "evaluation_response"],
+    "combined_log": ["combined_log"],
+}
 
 
 def load_rollouts(path: str | None) -> List[dict]:
@@ -41,13 +63,21 @@ def load_rollouts(path: str | None) -> List[dict]:
 
 
 def read_rollout_records(path: Path) -> List[dict]:
+    if path.is_dir():
+        rows: list[dict] = []
+        for file_path in discover_rollout_files(path):
+            rows.extend(read_rollout_records(file_path))
+        if rows:
+            return rows
+        raise ValueError(f"No rollout records found under directory: {path}")
+
     if path.suffix == ".jsonl":
         rows = []
         with path.open("r", encoding="utf-8") as file:
             for line_no, line in enumerate(file, start=1):
                 if not line.strip():
                     continue
-                row = json.loads(line)
+                row = canonicalize_rollout_row(json.loads(line), source_path=path, row_index=line_no)
                 validate_rollout(row, line_no)
                 rows.append(row)
         return rows
@@ -64,10 +94,82 @@ def read_rollout_records(path: Path) -> List[dict]:
         else:
             raise ValueError(f"Unsupported JSON payload in {path}")
         for line_no, row in enumerate(rows, start=1):
+            row = canonicalize_rollout_row(row, source_path=path, row_index=line_no)
             validate_rollout(row, line_no)
+            rows[line_no - 1] = row
         return rows
 
     raise ValueError(f"Unsupported rollout file suffix: {path.suffix}")
+
+
+def discover_rollout_files(path: Path) -> list[Path]:
+    candidates = sorted(
+        file_path
+        for file_path in path.rglob("*")
+        if file_path.is_file()
+        and file_path.suffix in {".json", ".jsonl"}
+        and _looks_like_rollout_file(file_path)
+    )
+    if candidates:
+        return candidates
+    return sorted(
+        file_path
+        for file_path in path.rglob("*")
+        if file_path.is_file() and file_path.suffix in {".json", ".jsonl"}
+    )
+
+
+def _looks_like_rollout_file(path: Path) -> bool:
+    lowered = path.name.lower()
+    return any(token in lowered for token in ["rollout", "refine", "trace", "log"])
+
+
+def canonicalize_rollout_row(row: Any, source_path: Path | None = None, row_index: int = 0) -> dict:
+    if not isinstance(row, dict):
+        raise ValueError("rollout row must be an object")
+
+    merged = _unwrap_trace_wrapper(row)
+    combined_log = merged.get("combined_log")
+    if not isinstance(combined_log, dict):
+        combined_log = {}
+
+    normalized = dict(merged)
+    for field, aliases in TRACE_FIELD_ALIASES.items():
+        value = _first_present_value(normalized, aliases)
+        if value is None:
+            value = _first_present_value(combined_log, aliases)
+        if value is not None:
+            normalized[field] = value
+
+    if source_path is not None:
+        normalized["_adapter_input_path"] = str(source_path)
+        normalized["_adapter_input_name"] = source_path.name
+        normalized["_adapter_input_row"] = row_index
+    if "source_ref" not in normalized and source_path is not None:
+        normalized["source_ref"] = f"{source_path.stem}:{row_index}"
+    return normalized
+
+
+def _unwrap_trace_wrapper(row: dict) -> dict:
+    normalized = dict(row)
+    for key in TRACE_WRAPPER_KEYS:
+        nested = normalized.get(key)
+        if isinstance(nested, dict):
+            normalized = {**nested, **{name: value for name, value in normalized.items() if name != key}}
+    return normalized
+
+
+def _first_present_value(row: dict, keys: list[str]) -> Any:
+    for key in keys:
+        if key not in row:
+            continue
+        value = row.get(key)
+        if value is None:
+            continue
+        if isinstance(value, str) and not value.strip():
+            continue
+        return value
+    return None
 
 
 def validate_rollout(row: dict, line_no: int):
@@ -225,6 +327,8 @@ def normalize_rollout(row: dict, index: int) -> dict:
             "snapshot_turn": _snapshot_turn(row.get("state_snapshot")),
             "proxy": row.get("proxy", CRITIQUEWORLD_PROXY),
             "source": row.get("source", "GIMO_real_rollout"),
+            "input_path": row.get("_adapter_input_path"),
+            "input_name": row.get("_adapter_input_name"),
         },
         "_adapter_state_snapshot": normalize_state_snapshot(row),
     }
@@ -355,6 +459,8 @@ def normalize_trace_rollout(row: dict, index: int) -> dict:
             "proxy": GPE_HAP_PROXY,
             "source": row.get("source", "gpe_hap_refinement_trace"),
             "task_type": task_type,
+            "input_path": row.get("_adapter_input_path"),
+            "input_name": row.get("_adapter_input_name"),
         },
         "_adapter_state_snapshot": state_snapshot,
         "_adapter_trace_fields": {

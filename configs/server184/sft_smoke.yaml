@@ -1,0 +1,14 @@
+model_name_or_path: ${LLAMAFACTORY_MODEL_NAME_OR_PATH}
+stage: sft
+do_train: true
+finetuning_type: lora
+template: llama3
+dataset_dir: ${BRIDGE_OUTPUT_DIR}/latest/cdpo_dataset
+dataset: train
+cutoff_len: 4096
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 8
+learning_rate: 1.0e-4
+num_train_epochs: 1.0
+max_steps: 50
+output_dir: outputs/server184_llamafactory/sft_smoke

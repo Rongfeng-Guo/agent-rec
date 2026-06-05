@@ -6,7 +6,7 @@
 
 ## Current HEAD
 
-`5dc6f4688c51e6eafceb4747dcff29f0ed9980ab` after the real-rollout bridge and fixture-smoke round.
+`e2c60d339652963237c1797a3cb6cf476098c16f` after the real-rollout bridge, task-type preservation, and fixture-smoke refresh.
 
 ## COMPLETED
 
@@ -124,6 +124,9 @@
     task types
   - proxy branch materialization with `source_ref` and task-type preservation
   - JSON and JSONL auto-detection for `*_refine_log_sample*.json`
+  - directory input support for mixed real rollout / trace drops
+  - wrapper and alias normalization for nested `log` / `trace` / `record`
+    payloads and `combined_log` fields
   - directory exporter for batch trace normalization into adapter-ready JSONL
 - GPE/HAP bridge follow-up:
   - real-bridge audit with source-row, branch-row, pair-quality, and
@@ -132,6 +135,19 @@
     LLaMA-Factory dry-run validation
   - fixture smoke pipeline in `outputs/gpe_hap_fixture_smoke`
   - `BLOCKED_REAL_LOG_MISSING` when no real trace files are present
+- Server184 rollout infrastructure:
+  - `.env.server184.example`
+  - `scripts/server184/check_env.sh`
+  - `scripts/server184/discover_resources.sh`
+  - `scripts/server184/serve_vllm_single.sh`
+  - `scripts/server184/serve_vllm_replicas.sh`
+  - `scripts/server184/stop_vllm.sh`
+  - `scripts/server184/run_real_gimo_rollout_smoke.sh`
+  - `scripts/server184/run_real_rollout_bridge.sh`
+  - `scripts/server184/run_gpu_smoke_pipeline.sh`
+  - staged SFT/CDPO smoke launchers and `configs/server184/`
+  - static regression tests for strict-mode, timestamped outputs, and safe
+    non-fixture bridge behavior
 
 ## SMOKE_TEST_ONLY
 
@@ -208,6 +224,14 @@ effectiveness.
 - The LLaMA-Factory dry-run validation can verify dataset shape and
   file-path hygiene, but it cannot report `READY_FOR_GPU_SMOKE` until a model
   path is configured in `MODEL_NAME_OR_PATH` or `LLAMAFACTORY_MODEL_NAME_OR_PATH`.
+
+## Latest Server184 Readiness
+
+- Current local host is not server 184 in this workspace round.
+- `nvidia-smi` reports one local `RTX 4050 Laptop GPU` instead of `4 x RTX 4090`.
+- Real server-184 GPU rollout smoke is therefore `NOT_RUN` from this machine.
+- Repo-side automation, docs, and env/resource reporting are prepared so the
+  exact commands can be executed on server 184 without reusing fixture traces.
 
 ## KNOWN_LIMITATIONS
 

@@ -262,3 +262,10 @@ step is to run that adapter on actual GIMO simulator traces and compare whether
 the controlled failure modes appear in real logs. In this checkout, the bridge
 is smoke-tested end-to-end on fixture traces, but real GPE/HAP logs are still
 marked `BLOCKED_REAL_LOG_MISSING` when no trace files are present.
+
+The repository now also includes a dedicated `scripts/server184/` layer for
+that handoff: host verification, model/data/index discovery, local `vllm`
+serving, real rollout smoke, bridge audit, and staged LLaMA-Factory smoke
+launchers. Those scripts are designed to preserve logs and report blockers such
+as `NOT_ON_SERVER184`, `BLOCKED_MODEL_MISSING`, `BLOCKED_DATA_MISSING`, and
+`BLOCKED_VLLM_NOT_INSTALLED` instead of silently downgrading to fixture data.

@@ -227,6 +227,106 @@ def test_jsonl_refine_log_is_supported(tmp_path):
     assert scenarios[0]["_adapter_metadata"]["task_type"] == "ask"
 
 
+def test_trace_directory_input_is_supported(tmp_path):
+    traces_dir = tmp_path / "real_logs"
+    traces_dir.mkdir()
+
+    (traces_dir / "recommend_refine_log_sample1.json").write_text(
+        json.dumps(
+            [
+                gpe_trace_row(
+                    "recommend",
+                    "Recommend a better response for the scratchpad.",
+                    "Recommend[old answer]",
+                    "Recommend[new answer]",
+                    "Recommend[new answer]",
+                    sample_num=2,
+                )
+            ],
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    (traces_dir / "real_rollouts.jsonl").write_text(
+        json.dumps(
+            {
+                "id": "real_ufc_fatigue",
+                "scenario": "real_ufc_fatigue",
+                "method": "gimo_real_rollout",
+                "seed": 7,
+                "parser_mode": "external",
+                "critique_type": "Temporary Fatigue",
+                "utterance": "I have seen too much UFC lately. Switch it up for a bit.",
+                "critiques": [
+                    {
+                        "target": "UFC",
+                        "operation": "attenuate",
+                        "reason": "exposure fatigue",
+                        "object_scope": "category",
+                        "temporal_scope": "session",
+                        "horizon": 3,
+                        "hardness": "soft",
+                        "confidence": 0.78,
+                        "promotion_condition": "never",
+                    }
+                ],
+                "branches": {
+                    "follow": {"trajectory": [{"turn": 5, "action": "click", "utility": 1.2}]},
+                    "ignore": {"trajectory": [{"turn": 5, "action": "click", "utility": 0.8}]},
+                    "over_apply": {"trajectory": [{"turn": 5, "action": "click", "utility": 0.6}]},
+                },
+            },
+            ensure_ascii=False,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    scenarios = load_rollouts(str(traces_dir))
+    assert len(scenarios) == 2
+    assert {scenario["_adapter_metadata"]["input_name"] for scenario in scenarios} == {
+        "recommend_refine_log_sample1.json",
+        "real_rollouts.jsonl",
+    }
+
+
+def test_nested_combined_log_trace_is_supported_without_top_level_aliases(tmp_path):
+    input_path = tmp_path / "wrapped_refine_log_sample1.json"
+    input_path.write_text(
+        json.dumps(
+            [
+                {
+                    "log": {
+                        "combined_log": {
+                            "task_type": "search",
+                            "input": "Find a better query for the current search task.",
+                            "original_output": "cheap hiking boots",
+                            "ground_truth": "waterproof hiking boots",
+                            "policy_improvement_output": "{\"refinement_output\": [\"waterproof hiking boots\"]}",
+                            "best_refinement": "waterproof hiking boots",
+                            "sample_id": 9,
+                            "query_text": "cheap hiking boots",
+                            "action": "search",
+                        }
+                    }
+                }
+            ],
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    scenarios = load_rollouts(str(input_path))
+    assert len(scenarios) == 1
+    scenario = scenarios[0]
+    assert scenario["_adapter_source"] == "gpe_hap_refinement_trace"
+    assert scenario["_adapter_metadata"]["task_type"] == "search"
+    assert scenario["_adapter_metadata"]["input_name"] == "wrapped_refine_log_sample1.json"
+    assert scenario["follow_value"] == [1.0]
+
+
 def test_gpe_hap_exporter_discovers_and_exports_json_traces(tmp_path):
     traces_dir = tmp_path / "traces"
     nested_dir = traces_dir / "run-1"

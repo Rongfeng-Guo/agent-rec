@@ -29,7 +29,7 @@ required_files = {
 
 missing = [name for name, path in required_files.items() if not path.exists()]
 if missing:
-    raise SystemExit(f"Missing dataset files: {missing}")
+    raise SystemExit(f"BLOCKED_DATASET_SCHEMA: missing dataset files: {missing}")
 
 dataset_info = json.loads(required_files["dataset_info"].read_text(encoding="utf-8"))
 train_rows = json.loads(required_files["train"].read_text(encoding="utf-8"))
@@ -89,16 +89,16 @@ for key, value in dataset_info.items():
                 errors.append(f"{key} file_name must be relative, got {file_name}")
 
 if errors:
-    raise SystemExit("Invalid dataset:\n" + "\n".join(errors[:50]))
+    raise SystemExit("BLOCKED_DATASET_SCHEMA:\n" + "\n".join(errors[:50]))
 
 model_path = os.environ.get("LLAMAFACTORY_MODEL_NAME_OR_PATH") or os.environ.get("MODEL_NAME_OR_PATH")
 model_status = "BLOCKED_MODEL_MISSING"
 if model_path and Path(model_path).exists():
-    model_status = "READY_FOR_GPU_SMOKE"
+    model_status = "READY_FOR_GPU_CDPO_SMOKE"
 
 llama_factory_dir = root_dir / "LLaMA-Factory"
 if not llama_factory_dir.exists():
-    raise SystemExit("LLaMA-Factory directory is missing")
+    raise SystemExit("BLOCKED_LLAMAFACTORY_CONFIG: LLaMA-Factory directory is missing")
 
 validation = {
     "status": model_status,

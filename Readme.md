@@ -222,11 +222,18 @@ Useful entry points:
 ```bash
 bash scripts/run_fixture_rollout_bridge_smoke.sh
 bash scripts/run_real_rollout_bridge.sh <TRACE_DIR_OR_FILE> <OUTPUT_DIR>
+bash scripts/server184/run_gpu_smoke_pipeline.sh
 ```
 
 The fixture smoke path is complete in this checkout. Real GPE/HAP traces are
 still blocked when no trace files are present, and the bridge script reports
 `BLOCKED_REAL_LOG_MISSING` instead of falling back silently.
+
+For the first real GPU smoke on server 184, use
+[`docs/server184_gpu_smoke.md`](docs/server184_gpu_smoke.md). The repo now
+ships `scripts/server184/` helpers for environment checks, resource discovery,
+single-card `vllm`, real rollout smoke, bridge audit, and later SFT/CDPO smoke
+entry points without hardcoding author-machine paths.
 
 Validity gate:
 

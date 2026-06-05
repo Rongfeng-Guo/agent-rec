@@ -33,6 +33,10 @@ def parse_args():
     parser.add_argument("--model_path", type=str, default="../../crs/tools/all-MiniLM-L6-v2", help="Embedding model path")
     parser.add_argument("--sample_num", type=int, default=2, help="Number of samples to process")
     parser.add_argument("--task_limit", type=int, default=None, help="Max number of tasks to refine (across each mode)")
+    parser.add_argument("--data_root", type=str, default=None, help="Directory containing recommend_data.json / ask_data.json / search_data.json")
+    parser.add_argument("--output_root", type=str, default=None, help="Base directory for timestamped rollout outputs")
+    parser.add_argument("--output_dir", type=str, default=None, help="Explicit output directory. Overrides --output_root.")
+    parser.add_argument("--max_workers", type=int, default=50, help="Worker count for refinement jobs")
     parser.add_argument("--no_potential", dest="potential", action="store_false", help="Disable potential function refinement")
     parser.add_argument("--no_valid", dest="valid", action="store_false", help="Disable validation")
     return parser.parse_args()
@@ -48,6 +52,53 @@ def load_json(file_path: str):
 def load_config(config_path):
     with open(config_path, 'r') as f:
         return json.load(f)
+
+
+def env_or_value(env_name: str, value: str | None) -> str | None:
+    env_value = os.environ.get(env_name)
+    if env_value is not None and env_value.strip():
+        return env_value
+    return value
+
+
+def resolve_data_root(args) -> str:
+    data_root = env_or_value("GPE_HAP_INPUT", args.data_root)
+    if data_root:
+        return data_root
+    return os.path.join("your", "work", "dir", args.domain, "bpo")
+
+
+def resolve_output_dir(args, domain: str) -> str:
+    if args.output_dir:
+        return args.output_dir
+    output_root = env_or_value("GPE_HAP_OUTPUT_DIR", args.output_root)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    if output_root:
+        return os.path.join(output_root, timestamp)
+    return os.path.join(f"../{domain}/bpo", timestamp)
+
+
+def load_task_jsons(data_root: str):
+    required = {
+        "recommend": os.path.join(data_root, "recommend_data.json"),
+        "ask": os.path.join(data_root, "ask_data.json"),
+        "search": os.path.join(data_root, "search_data.json"),
+    }
+    missing = [path for path in required.values() if not os.path.exists(path)]
+    if missing:
+        raise FileNotFoundError(f"Missing task data files: {missing}")
+    return {name: load_json(path) for name, path in required.items()}
+
+
+def build_client(config: dict, prefix: str) -> OpenAIClient:
+    base_url = env_or_value(f"{prefix}_BASE_URL", config.get("base_url"))
+    api_key = env_or_value(f"{prefix}_API_KEY", config.get("api_key"))
+    model_path = env_or_value(f"{prefix}_MODEL_PATH", config.get("model_path"))
+    return OpenAIClient(
+        base_url=base_url,
+        api_key=api_key,
+        model_path=model_path,
+    )
 
 
 # def is_valid_format(text):
@@ -100,6 +151,7 @@ def main():
 
     index_path = os.path.join(args.index_root, domain, "faiss_index.bin")
     metadata_path = os.path.join(args.index_root, domain, "metadata.json")
+    data_root = resolve_data_root(args)
 
     emb_model = SentenceTransformer(args.model_path)
     index = faiss.read_index(index_path)
@@ -107,31 +159,23 @@ def main():
     with open(metadata_path, 'r', encoding='utf-8') as f:
         metadata = json.load(f)
 
-    rec_data = load_json(f"your/work/dir/{args.domain}/bpo/recommend_data.json")
-    ask_data = load_json(f"your/work/dir/{args.domain}/bpo/ask_data.json")
-    search_data = load_json(f"your/work/dir/{args.domain}/bpo/search_data.json")
+    task_data = load_task_jsons(data_root)
+    rec_data = task_data["recommend"]
+    ask_data = task_data["ask"]
+    search_data = task_data["search"]
 
     rec_tasks = [(i, d["Instruction"], d["output"], d["ground_truth"], d["is_correct"], d["is_recall"]) for i, d in enumerate(rec_data)]
     search_tasks = [(i, d["Instruction"], d["output"], d["gt_title"]) for i, d in enumerate(search_data)]
     ask_tasks = [(i, d["Instruction"], d["output"], d["ground_truth"]) for i, d in enumerate(ask_data)]
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_dir = os.path.join(f"../{domain}/bpo", f"{timestamp}")
+    output_dir = resolve_output_dir(args, domain)
     os.makedirs(output_dir, exist_ok=True)
 
     config = load_config(args.config_path)["openai"]
-    openai_client = OpenAIClient(
-        base_url=config["base_url"],
-        api_key=config["api_key"],
-        model_path=config["model_path"],
-    )
+    openai_client = build_client(config, "OPENAI")
 
     mini_config = load_config(args.config_path)["openai_mini"]
-    openai_mini_client = OpenAIClient(
-        base_url=mini_config["base_url"],
-        api_key=mini_config["api_key"],
-        model_path=mini_config["model_path"],
-    )
+    openai_mini_client = build_client(mini_config, "OPENAI_MINI")
 
     sft_results = []
     dpo_results = []
@@ -143,20 +187,20 @@ def main():
         search_tasks = search_tasks[:args.task_limit]
 
     if "recommend" in active_modes:
-        rec_sft, rec_dpo, rec_logs = refine_rec_trajectories(rec_tasks, openai_mini_client, sample_num, potential, valid, max_workers=50)
+        rec_sft, rec_dpo, rec_logs = refine_rec_trajectories(rec_tasks, openai_mini_client, sample_num, potential, valid, max_workers=args.max_workers)
         sft_results.extend(rec_sft)
         dpo_results.extend(rec_dpo)
         all_logs.extend(rec_logs)
 
     if "ask" in active_modes:
-        ask_sft, ask_dpo, ask_logs = refine_ask_trajectories(domain, ask_tasks, openai_mini_client, sample_num, potential, valid, max_workers=50)
+        ask_sft, ask_dpo, ask_logs = refine_ask_trajectories(domain, ask_tasks, openai_mini_client, sample_num, potential, valid, max_workers=args.max_workers)
         sft_results.extend(ask_sft)
         dpo_results.extend(ask_dpo)
         all_logs.extend(ask_logs)
 
     if "search" in active_modes:
         search_sft, search_dpo, search_logs = refine_search_trajectories(
-            search_tasks, openai_mini_client, index, metadata, emb_model, sample_num, potential, valid, max_workers=50
+            search_tasks, openai_mini_client, index, metadata, emb_model, sample_num, potential, valid, max_workers=args.max_workers
         )
         sft_results.extend(search_sft)
         dpo_results.extend(search_dpo)
