@@ -4,9 +4,14 @@
 
 `codex/driftaware-structured-memory`
 
-## Current HEAD
+## Current Branch State
 
-`e2c60d339652963237c1797a3cb6cf476098c16f` after the real-rollout bridge, task-type preservation, and fixture-smoke refresh.
+The `codex/driftaware-structured-memory` branch contains the real-rollout
+bridge, task-type preservation, fixture-smoke refresh, server184 GPU smoke
+workflow, and final improvement summary. The server184 workflow implementation
+landed at `d0be2f6d959f35955b1ddd93b8d71a7d3a80127c`; use
+`git rev-parse HEAD` for the exact latest branch tip after documentation-only
+summary commits.
 
 ## COMPLETED
 
