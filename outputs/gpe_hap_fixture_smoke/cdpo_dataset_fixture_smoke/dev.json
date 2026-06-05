@@ -1,0 +1,94 @@
+[
+  {
+    "id": "recommend:recommend:2:turn0:point0:ignore",
+    "scenario": "recommend",
+    "seed": 2,
+    "method": "recommend",
+    "parser_mode": "gpe_hap_trace",
+    "task_type": "recommend",
+    "source_ref": "gpe_hap:recommend:1",
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Given the state snapshot and user critique, choose the recommendation policy that follows the instruction without over-correcting durable memory.\nCritique: {\"utterance\": \"Recommend a better response for the scratchpad.\", \"critiques\": [{\"target\": \"recommend\", \"operation\": \"promote\", \"reason\": \"gpe_hap_refinement_trace\", \"object_scope\": \"global\", \"temporal_scope\": \"session\", \"horizon\": 1, \"hardness\": \"soft\", \"confidence\": 1.0, \"promotion_condition\": \"never\"}]}\nState snapshot turn: 0"
+      }
+    ],
+    "chosen": {
+      "branch": "follow",
+      "policy": "Directly rerank or recommend the best candidate under current preferences.",
+      "trajectory": "turn=0 action=refine utility=1.000 response=Recommend[new answer]"
+    },
+    "rejected": {
+      "branch": "ignore",
+      "policy": "Keep the current recommendation order and ignore the critique.",
+      "trajectory": "turn=0 action=preserve utility=0.000 prompt=Recommend[old answer] response=Recommend[old answer]"
+    },
+    "score_delta": 1.0,
+    "metadata": {
+      "proxy": "controlled counterfactual rollout proxy",
+      "horizon": 1,
+      "critique_point_index": 0,
+      "snapshot_turn": 0,
+      "branch_id": "gpe_hap:recommend:1",
+      "source": "CritiqueWorld",
+      "task_type": "recommend",
+      "source_ref": "gpe_hap:recommend:1",
+      "format": "llamafactory_dpo_bridge",
+      "origin_source": "gpe_hap_refinement_trace",
+      "origin_proxy": "gpe_hap_refinement_proxy",
+      "state_snapshot_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+      "git_commit": "bbfcd85f3a6d5fcf1439268131772a83122b1fb3",
+      "git_branch": "codex/driftaware-structured-memory"
+    },
+    "state_snapshot_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+    "split": "dev",
+    "git_commit": "bbfcd85f3a6d5fcf1439268131772a83122b1fb3",
+    "git_branch": "codex/driftaware-structured-memory"
+  },
+  {
+    "id": "recommend:recommend:2:turn0:point0:over_apply",
+    "scenario": "recommend",
+    "seed": 2,
+    "method": "recommend",
+    "parser_mode": "gpe_hap_trace",
+    "task_type": "recommend",
+    "source_ref": "gpe_hap:recommend:1",
+    "conversations": [
+      {
+        "from": "human",
+        "value": "Given the state snapshot and user critique, choose the recommendation policy that follows the instruction without over-correcting durable memory.\nCritique: {\"utterance\": \"Recommend a better response for the scratchpad.\", \"critiques\": [{\"target\": \"recommend\", \"operation\": \"promote\", \"reason\": \"gpe_hap_refinement_trace\", \"object_scope\": \"global\", \"temporal_scope\": \"session\", \"horizon\": 1, \"hardness\": \"soft\", \"confidence\": 1.0, \"promotion_condition\": \"never\"}]}\nState snapshot turn: 0"
+      }
+    ],
+    "chosen": {
+      "branch": "follow",
+      "policy": "Directly rerank or recommend the best candidate under current preferences.",
+      "trajectory": "turn=0 action=refine utility=1.000 response=Recommend[new answer]"
+    },
+    "rejected": {
+      "branch": "over_apply",
+      "policy": "Over-apply the critique and over-constrain the recommendation set.",
+      "trajectory": "turn=0 action=over_apply utility=0.200 prompt={\"reward\": 0.2} response={\"refinement_output\": [\"Recommend[new answer]\"]}"
+    },
+    "score_delta": 0.8,
+    "metadata": {
+      "proxy": "controlled counterfactual rollout proxy",
+      "horizon": 1,
+      "critique_point_index": 0,
+      "snapshot_turn": 0,
+      "branch_id": "gpe_hap:recommend:1",
+      "source": "CritiqueWorld",
+      "task_type": "recommend",
+      "source_ref": "gpe_hap:recommend:1",
+      "format": "llamafactory_dpo_bridge",
+      "origin_source": "gpe_hap_refinement_trace",
+      "origin_proxy": "gpe_hap_refinement_proxy",
+      "state_snapshot_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+      "git_commit": "bbfcd85f3a6d5fcf1439268131772a83122b1fb3",
+      "git_branch": "codex/driftaware-structured-memory"
+    },
+    "state_snapshot_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+    "split": "dev",
+    "git_commit": "bbfcd85f3a6d5fcf1439268131772a83122b1fb3",
+    "git_branch": "codex/driftaware-structured-memory"
+  }
+]

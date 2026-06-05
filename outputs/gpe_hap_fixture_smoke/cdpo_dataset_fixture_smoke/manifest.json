@@ -1,0 +1,87 @@
+{
+  "dataset_name": "export_cdpo_dataset",
+  "source": "CritiqueWorld",
+  "status": "COMPLETED_FIXTURE_SMOKE",
+  "proxy": "controlled counterfactual rollout proxy",
+  "created_at_utc": "2026-06-05T04:03:21.337098+00:00",
+  "git_commit": "bbfcd85f3a6d5fcf1439268131772a83122b1fb3",
+  "git_branch": "codex/driftaware-structured-memory",
+  "input_file": "C:\\Users\\grfpa\\Documents\\Codex\\2026-06-04\\rongfeng-guo-gimo-https-github-com\\GIMO\\outputs\\gpe_hap_fixture_smoke\\export\\cdpo_pairs.jsonl",
+  "input_sha256": "43ee712136f54f399ea3614ac385dd91f2d85a8615671b2dd86c3b7210337dc5",
+  "seed": 42,
+  "dev_ratio": 0.1,
+  "row_count": 6,
+  "source_ref_count": 3,
+  "task_type_distribution": {
+    "ask": 2,
+    "recommend": 2,
+    "search": 2
+  },
+  "recommend_count": 2,
+  "ask_count": 2,
+  "search_count": 2,
+  "generic_count": 0,
+  "task_types": {
+    "ask": 2,
+    "recommend": 2,
+    "search": 2
+  },
+  "source_refs": {
+    "gpe_hap:ask:1": 2,
+    "gpe_hap:recommend:1": 2,
+    "gpe_hap:search:1": 2
+  },
+  "chosen_trajectory_length": {
+    "min": 1,
+    "mean": 1,
+    "max": 1
+  },
+  "rejected_trajectory_length": {
+    "min": 1,
+    "mean": 1,
+    "max": 1
+  },
+  "uplift_distribution": {
+    "min": 0.8,
+    "mean": 0.9,
+    "max": 1.0
+  },
+  "uplift_positive_count": 6,
+  "uplift_negative_count": 0,
+  "uplift_zero_count": 0,
+  "splits": {
+    "train_count": 4,
+    "dev_count": 2,
+    "train_source_refs": [
+      "gpe_hap:ask:1",
+      "gpe_hap:search:1"
+    ],
+    "dev_source_refs": [
+      "gpe_hap:recommend:1"
+    ],
+    "train_file": "C:\\Users\\grfpa\\Documents\\Codex\\2026-06-04\\rongfeng-guo-gimo-https-github-com\\GIMO\\outputs\\gpe_hap_fixture_smoke\\export\\train.json",
+    "dev_file": "C:\\Users\\grfpa\\Documents\\Codex\\2026-06-04\\rongfeng-guo-gimo-https-github-com\\GIMO\\outputs\\gpe_hap_fixture_smoke\\export\\dev.json"
+  },
+  "schema": {
+    "format": "llamafactory_dpo_bridge",
+    "required_fields": [
+      "id",
+      "scenario",
+      "seed",
+      "method",
+      "parser_mode",
+      "conversations",
+      "chosen",
+      "rejected",
+      "score_delta",
+      "metadata",
+      "source_ref",
+      "state_snapshot_hash",
+      "git_commit"
+    ]
+  },
+  "limitations": [
+    "train/dev split is grouped by source_ref to prevent leakage",
+    "fixture smoke output is not a substitute for real GPE/HAP output"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "input": "C:\\Users\\grfpa\\Documents\\Codex\\2026-06-04\\rongfeng-guo-gimo-https-github-com\\GIMO\\outputs\\gpe_hap_fixture_smoke\\fixtures",
+  "discovered_inputs": [
+    "C:\\Users\\grfpa\\Documents\\Codex\\2026-06-04\\rongfeng-guo-gimo-https-github-com\\GIMO\\outputs\\gpe_hap_fixture_smoke\\fixtures\\ask_refine_log_sample1.jsonl",
+    "C:\\Users\\grfpa\\Documents\\Codex\\2026-06-04\\rongfeng-guo-gimo-https-github-com\\GIMO\\outputs\\gpe_hap_fixture_smoke\\fixtures\\recommend_refine_log_sample1.json",
+    "C:\\Users\\grfpa\\Documents\\Codex\\2026-06-04\\rongfeng-guo-gimo-https-github-com\\GIMO\\outputs\\gpe_hap_fixture_smoke\\fixtures\\search_refine_log_sample1.json"
+  ],
+  "trace_count": 3,
+  "branch_row_count": 9,
+  "dpo_pair_count": 6,
+  "cdpo_pair_count": 6,
+  "output_dir": "C:\\Users\\grfpa\\Documents\\Codex\\2026-06-04\\rongfeng-guo-gimo-https-github-com\\GIMO\\outputs\\gpe_hap_fixture_smoke\\export"
+}

@@ -1,0 +1,33 @@
+[
+  {
+    "task_type": "search",
+    "input": "Find a better query for the current search task.",
+    "original_action": "search",
+    "original_response": "cheap hiking boots",
+    "original_query": "cheap hiking boots",
+    "original_rank": 12,
+    "ground_truth": "waterproof hiking boots",
+    "refinements": [
+      "add waterproof",
+      "add trail grip"
+    ],
+    "refined_queries": [
+      "waterproof hiking boots"
+    ],
+    "refined_ranks": [
+      {
+        "query": "waterproof hiking boots",
+        "rank": 3
+      }
+    ],
+    "potential_reward_output": "{\"reward\": 0.3}",
+    "policy_improvement_output": "{\"refinement_output\": [\"waterproof hiking boots\"]}",
+    "best_refinement": "waterproof hiking boots",
+    "is_original_best": false,
+    "sample_num": 4,
+    "combined_log": {
+      "task_type": "search",
+      "source": "fixture"
+    }
+  }
+]

@@ -4,7 +4,10 @@
   "input": "DEFAULT_SCENARIOS",
   "scenario_count": 6,
   "pair_count": 12,
-  "audit_checks": 18,
+  "branch_rollout_count": 48,
+  "dpo_pair_count": 12,
+  "cdpo_pair_count": 12,
+  "audit_checks": 24,
   "audit_failures": 0,
   "audit_failed_scenarios": [],
   "audit_failed_by_type": {}

@@ -1,0 +1,17 @@
+[
+  {
+    "task_type": "recommend",
+    "input": "Recommend a better response for the scratchpad.",
+    "original_response": "Recommend[old answer]",
+    "ground_truth": "Recommend[new answer]",
+    "potential_reward_output": "{\"reward\": 0.2}",
+    "policy_improvement_output": "{\"refinement_output\": [\"Recommend[new answer]\"]}",
+    "best_refinement": "Recommend[new answer]",
+    "is_original_best": false,
+    "sample_num": 2,
+    "combined_log": {
+      "task_type": "recommend",
+      "source": "fixture"
+    }
+  }
+]

@@ -1,0 +1,36 @@
+{
+  "export_cdpo_dataset_train": {
+    "file_name": "train.json",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations",
+      "chosen": "chosen",
+      "rejected": "rejected"
+    },
+    "metadata": {
+      "source": "CritiqueWorld",
+      "status": "COMPLETED_FIXTURE_SMOKE",
+      "proxy": "controlled counterfactual rollout proxy",
+      "row_count": 4,
+      "manifest": "cdpo_dataset_manifest.json",
+      "split": "train"
+    }
+  },
+  "export_cdpo_dataset_dev": {
+    "file_name": "dev.json",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations",
+      "chosen": "chosen",
+      "rejected": "rejected"
+    },
+    "metadata": {
+      "source": "CritiqueWorld",
+      "status": "COMPLETED_FIXTURE_SMOKE",
+      "proxy": "controlled counterfactual rollout proxy",
+      "row_count": 2,
+      "manifest": "cdpo_dataset_manifest.json",
+      "split": "dev"
+    }
+  }
+}

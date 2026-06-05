@@ -1,0 +1,48 @@
+{
+  "status": "PASS",
+  "critical_error_count": 0,
+  "error_count": 0,
+  "warning_count": 0,
+  "source_row_count": 3,
+  "converted_row_count": 9,
+  "skipped_row_count": 0,
+  "parse_error_count": 0,
+  "task_type_counts": {
+    "generic": 3
+  },
+  "unknown_task_type_count": 3,
+  "branch_rollout_count": 9,
+  "dpo_pair_count": 6,
+  "cdpo_pair_count": 6,
+  "duplicate_row_count": 0,
+  "combined_log_missing_count": 3,
+  "missing_state_snapshot_count": 3,
+  "missing_critique_count": 0,
+  "missing_metadata_count": 0,
+  "follow_branch_missing_count": 0,
+  "ignore_branch_missing_count": 0,
+  "over_apply_branch_missing_count": 0,
+  "chosen_rejected_same_count": 0,
+  "uplift_missing_count": 0,
+  "uplift_zero_ratio": 0.0,
+  "uplift_positive_ratio": 1.0,
+  "uplift_negative_ratio": 0.0,
+  "policy_empty_count": 0,
+  "search_query_rewrite_empty_count": 0,
+  "export_metadata": {
+    "status": "PASS",
+    "input": "C:\\Users\\grfpa\\Documents\\Codex\\2026-06-04\\rongfeng-guo-gimo-https-github-com\\GIMO\\outputs\\gpe_hap_fixture_smoke\\fixtures",
+    "discovered_inputs": [
+      "C:\\Users\\grfpa\\Documents\\Codex\\2026-06-04\\rongfeng-guo-gimo-https-github-com\\GIMO\\outputs\\gpe_hap_fixture_smoke\\fixtures\\ask_refine_log_sample1.jsonl",
+      "C:\\Users\\grfpa\\Documents\\Codex\\2026-06-04\\rongfeng-guo-gimo-https-github-com\\GIMO\\outputs\\gpe_hap_fixture_smoke\\fixtures\\recommend_refine_log_sample1.json",
+      "C:\\Users\\grfpa\\Documents\\Codex\\2026-06-04\\rongfeng-guo-gimo-https-github-com\\GIMO\\outputs\\gpe_hap_fixture_smoke\\fixtures\\search_refine_log_sample1.json"
+    ],
+    "trace_count": 3,
+    "branch_row_count": 9,
+    "dpo_pair_count": 6,
+    "cdpo_pair_count": 6,
+    "output_dir": "C:\\Users\\grfpa\\Documents\\Codex\\2026-06-04\\rongfeng-guo-gimo-https-github-com\\GIMO\\outputs\\gpe_hap_fixture_smoke\\export"
+  },
+  "adapter_audit_rows": 0,
+  "adapter_failure_rows": 0
+}

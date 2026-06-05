@@ -1,0 +1,13 @@
+{
+  "status": "PASS",
+  "critical_errors": [],
+  "warnings": [],
+  "row_count": 6,
+  "train_count": 4,
+  "dev_count": 2,
+  "train_source_ref_count": 2,
+  "dev_source_ref_count": 1,
+  "source_ref_overlap_count": 0,
+  "duplicate_id_count": 0,
+  "validation_status": "PASS"
+}
