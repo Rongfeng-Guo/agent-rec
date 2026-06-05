@@ -113,6 +113,25 @@
   - `adapter_failures.jsonl`
   - `adapter_report.md`
   - fail-fast adapter CLI mode for real rollout inputs
+- Rollout-adapter normalization for richer real-rollout JSONL:
+  - branch trajectory ingestion
+  - state snapshot passthrough
+  - `branch_rollouts.jsonl`
+  - `dpo_pairs.jsonl`
+  - `cdpo_pairs.jsonl`
+  - backward-compatible value-only scenario ingestion
+  - GPE_HAP refinement-trace ingestion with `recommend` / `ask` / `search`
+    task types
+  - proxy branch materialization with `source_ref` and task-type preservation
+  - JSON and JSONL auto-detection for `*_refine_log_sample*.json`
+  - directory exporter for batch trace normalization into adapter-ready JSONL
+- GPE/HAP bridge follow-up:
+  - real-bridge audit with source-row, branch-row, pair-quality, and
+    task-type summaries
+  - CDPO dataset materialization with train/dev JSON, manifest, audit, and
+    LLaMA-Factory dry-run validation
+  - fixture smoke pipeline in `outputs/gpe_hap_fixture_smoke`
+  - `BLOCKED_REAL_LOG_MISSING` when no real trace files are present
 
 ## SMOKE_TEST_ONLY
 
@@ -126,6 +145,7 @@ evaluation, and not complete causal inference.
 | CritiqueWorld oracle | SMOKE_TEST_ONLY | 175 summary rows; 2095 trajectory rows; 3375 branch rows; 65 strict-positive raw pairs; 65 CDPO bridge pairs; CDPO validation PASS; manifest built; pipeline validity gate PASS | `outputs/closed_loop_oracle` |
 | CritiqueWorld deterministic parser | SMOKE_TEST_ONLY | 105 summary rows; 1257 trajectory rows; 2025 branch rows; 42 strict-positive raw pairs; 42 CDPO bridge pairs; CDPO validation PASS; manifest built; pipeline validity gate PASS | `outputs/closed_loop_deterministic` |
 | CritiqueWorld validity gate | PASS | 100/100 invariants passed; 0 critical failures; oracle parser | `outputs/validity_gate` |
+| GPE/HAP fixture bridge smoke | COMPLETED_FIXTURE_SMOKE | 3 traces; 9 branch rows; 6 DPO pairs; 6 CDPO pairs; bridge audit PASS; dataset materialization PASS; LLaMA-Factory dry-run BLOCKED_MODEL_MISSING | `outputs/gpe_hap_fixture_smoke` |
 
 ## Actual Closed-Loop Result Snapshot
 
@@ -174,6 +194,20 @@ effectiveness.
 - OpenAI-compatible critique parser mode is intentionally not run in this
   branch because no API endpoint/key is configured.
 - GPE/HAP scripts require an OpenAI-compatible endpoint and rollout inputs.
+
+## BLOCKED_REAL_LOG_MISSING
+
+- The real GPE/HAP bridge scripts are present, but this checkout does not
+  contain checked-in real rollout logs under `GPE_HAP/` or the workspace
+  outputs.
+- `bash scripts/run_real_rollout_bridge.sh <TRACE_DIR_OR_FILE> <OUTPUT_DIR>`
+  exits with `BLOCKED_REAL_LOG_MISSING` when no trace files are discovered.
+
+## BLOCKED_MODEL_MISSING
+
+- The LLaMA-Factory dry-run validation can verify dataset shape and
+  file-path hygiene, but it cannot report `READY_FOR_GPU_SMOKE` until a model
+  path is configured in `MODEL_NAME_OR_PATH` or `LLAMAFACTORY_MODEL_NAME_OR_PATH`.
 
 ## KNOWN_LIMITATIONS
 
@@ -230,7 +264,8 @@ effectiveness.
 
 ## Next Priorities
 
-1. Connect real GIMO rollout logs to the CritiqueWorld branch schema.
+1. Run the richer rollout adapter on actual GIMO rollout logs and inspect the
+   normalized `branch_rollouts.jsonl` / CDPO exports.
 2. Harden `cdpo_pairs.jsonl` into the exact dataset schema selected for the
    final LLaMA-Factory/GIMO CDPO training recipe.
 3. Add scenario coverage for noisy closed-loop ambiguity.

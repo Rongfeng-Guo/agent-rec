@@ -200,6 +200,34 @@ This pipeline runs the benchmark, validates `cdpo_pairs.jsonl`, materializes
 `cdpo_train.jsonl` and `cdpo_dev.jsonl`, builds the dataset manifest, and
 writes `closed_loop_report.md` plus `pipeline_metadata.json`.
 
+### 5. Real rollout bridge
+
+The repository also includes a bridge from GPE/HAP refinement traces to
+adapter-ready, audit-ready, and LLaMA-Factory-ready artifacts. The flow is:
+
+```text
+GPE/HAP refine log
+→ exporter
+→ adapter_input.jsonl
+→ branch_rollouts.jsonl
+→ dpo_pairs.jsonl / cdpo_pairs.jsonl
+→ audit
+→ train/dev materialization
+→ LLaMA-Factory dry-run
+→ GPU training
+```
+
+Useful entry points:
+
+```bash
+bash scripts/run_fixture_rollout_bridge_smoke.sh
+bash scripts/run_real_rollout_bridge.sh <TRACE_DIR_OR_FILE> <OUTPUT_DIR>
+```
+
+The fixture smoke path is complete in this checkout. Real GPE/HAP traces are
+still blocked when no trace files are present, and the bridge script reports
+`BLOCKED_REAL_LOG_MISSING` instead of falling back silently.
+
 Validity gate:
 
 ```bash

@@ -255,5 +255,10 @@ but it does not itself run SFT, GPE, HAP, or CDPO. The intended bridge is:
 
 CritiqueWorld is controlled and synthetic. It is useful for regression tests and
 mechanistic diagnosis, not for final human-facing recommendation claims. The
-next step is to feed real GIMO rollout logs into the same branch schema and
-compare whether the controlled failure modes appear in actual simulator traces.
+rollout adapter now accepts richer real-rollout JSONL with per-branch
+trajectories and state snapshots, and normalizes those logs into the same
+`branch_rollouts.jsonl` / DPO / CDPO schema used by CritiqueWorld. The next
+step is to run that adapter on actual GIMO simulator traces and compare whether
+the controlled failure modes appear in real logs. In this checkout, the bridge
+is smoke-tested end-to-end on fixture traces, but real GPE/HAP logs are still
+marked `BLOCKED_REAL_LOG_MISSING` when no trace files are present.

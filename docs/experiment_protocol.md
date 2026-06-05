@@ -141,6 +141,45 @@ bash gimo/{dataset}/sft/sft.sh
 bash gimo/{dataset}/gimo/adpo_v1_sample1.sh
 ```
 
+### Real GIMO Rollout Bridge
+
+The real-rollout bridge accepts `recommend`, `ask`, and `search` GPE/HAP
+refinement traces and normalizes them into the same bridge schema used by the
+controlled CritiqueWorld pipeline.
+
+Flow:
+
+```text
+GPE/HAP refine log
+→ exporter
+→ adapter_input.jsonl
+→ branch_rollouts.jsonl
+→ dpo_pairs.jsonl / cdpo_pairs.jsonl
+→ audit
+→ train/dev materialization
+→ LLaMA-Factory dry-run
+→ GPU training
+```
+
+Fixture smoke:
+
+```bash
+bash scripts/run_fixture_rollout_bridge_smoke.sh
+```
+
+Real traces, when available:
+
+```bash
+bash scripts/run_real_rollout_bridge.sh <TRACE_DIR_OR_FILE> <OUTPUT_DIR>
+```
+
+When no real trace files are present, the bridge script reports
+`BLOCKED_REAL_LOG_MISSING` instead of silently falling back to fixture data.
+
+The CDPO materializer groups rows by `source_ref`, preserves
+`state_snapshot_hash`, and writes JSON train/dev artifacts plus
+`dataset_info.json`, `manifest.json`, `audit.json`, and `README.md`.
+
 Optional parser backend for an OpenAI-compatible endpoint:
 
 ```bash
@@ -153,7 +192,10 @@ python -B -m user_simulator.evaluation.critique_parser \
   --output outputs/parser_runs/parsed.jsonl
 ```
 
-Real rollout adapter input should be JSONL with:
+Real rollout adapter input can be either the existing lightweight value-only
+schema or a richer branch-rollout schema.
+
+Value-only schema:
 
 ```json
 {
@@ -167,6 +209,71 @@ Real rollout adapter input should be JSONL with:
   "post_expiry_items": []
 }
 ```
+
+Branch-rollout schema:
+
+```json
+{
+  "id": "scenario_id",
+  "scenario": "scenario_id",
+  "method": "gimo_real_rollout",
+  "seed": 0,
+  "parser_mode": "external",
+  "critique_type": "Temporary Fatigue",
+  "utterance": "I have seen too much UFC lately. Switch it up for a bit.",
+  "critiques": [],
+  "state_snapshot": {
+    "turn": 4,
+    "user_state": {},
+    "memory_state": {}
+  },
+  "branches": {
+    "follow": {
+      "trajectory": [
+        {"turn": 5, "slate": ["boxing_1", "fitness_1"], "action": "click", "utility": 1.2}
+      ]
+    },
+    "ignore": {
+      "trajectory": [
+        {"turn": 5, "slate": ["ufc_1", "ufc_2"], "action": "click", "utility": 0.8}
+      ]
+    },
+    "over_apply": {
+      "trajectory": [
+        {"turn": 5, "slate": ["boxing_1", "science_1"], "action": "click", "utility": 0.6}
+      ]
+    }
+  }
+}
+```
+
+GPE_HAP refinement-trace schema:
+
+```json
+{
+  "task_type": "recommend",
+  "input": "Recommend a better response for the scratchpad.",
+  "original_response": "Recommend[old answer]",
+  "ground_truth": "Recommend[new answer]",
+  "potential_reward_output": "{\"reward\": 0.2}",
+  "policy_improvement_output": "{\"refinement_output\": [\"Recommend[new answer]\"]}",
+  "best_refinement": "Recommend[new answer]",
+  "is_original_best": false,
+  "sample_num": 2
+}
+```
+
+The adapter normalizes this trace format into the same branch-rollout,
+DPO/CDPO, and audit outputs using a proxy preference order derived from the
+trace-level evaluation result.
+
+The adapter accepts both JSONL and JSON arrays, so the
+`*_refine_log_sample*.json` artifacts written by `GPE_HAP/rewrite_v3.py` can be
+fed directly without reshaping them first.
+
+For convenience, `user_simulator.evaluation.export_gpe_hap_refine_logs` can
+discover those files in a directory and export adapter-ready JSONL plus
+branch-rollout/CDPO artifacts in one pass.
 
 Then run:
 
@@ -209,7 +316,10 @@ outputs/rollout_adapter_smoke/
   adapter_audit_summary.csv
   adapter_failures.jsonl
   adapter_report.md
+  branch_rollouts.jsonl
   critique_pairs.jsonl
+  dpo_pairs.jsonl
+  cdpo_pairs.jsonl
   normalized_scenarios.jsonl
 outputs/scenario_validation/
   deterministic.json
