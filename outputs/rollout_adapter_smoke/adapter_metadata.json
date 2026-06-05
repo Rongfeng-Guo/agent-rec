@@ -5,5 +5,7 @@
   "scenario_count": 6,
   "pair_count": 12,
   "audit_checks": 18,
-  "audit_failures": 0
+  "audit_failures": 0,
+  "audit_failed_scenarios": [],
+  "audit_failed_by_type": {}
 }

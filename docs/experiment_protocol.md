@@ -206,7 +206,9 @@ outputs/parser_smoke/
 outputs/rollout_adapter_smoke/
   adapter_metadata.json
   adapter_audit.jsonl
+  adapter_audit_summary.csv
   adapter_failures.jsonl
+  adapter_report.md
   critique_pairs.jsonl
   normalized_scenarios.jsonl
 outputs/scenario_validation/

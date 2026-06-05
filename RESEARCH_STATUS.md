@@ -109,7 +109,9 @@
   - `docs/baseline_matrix.md`
 - Rollout-adapter audit outputs for normalized scenario ingestion:
   - `adapter_audit.jsonl`
+  - `adapter_audit_summary.csv`
   - `adapter_failures.jsonl`
+  - `adapter_report.md`
   - fail-fast adapter CLI mode for real rollout inputs
 
 ## SMOKE_TEST_ONLY

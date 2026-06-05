@@ -9,7 +9,9 @@ utility source.
 from __future__ import annotations
 
 import argparse
+import csv
 import json
+from collections import Counter
 from pathlib import Path
 from typing import List
 
@@ -123,11 +125,51 @@ def audit_rollouts(rows: List[dict]) -> List[dict]:
     return findings
 
 
+def summarize_audit(findings: List[dict]) -> dict:
+    by_check = Counter(finding["check"] for finding in findings)
+    failed_by_check = Counter(finding["check"] for finding in findings if not finding["passed"])
+    failed_scenarios = sorted({finding["scenario_id"] for finding in findings if not finding["passed"]})
+    return {
+        "total_checks": len(findings),
+        "failed_checks": sum(1 for finding in findings if not finding["passed"]),
+        "checks_by_type": dict(sorted(by_check.items())),
+        "failed_by_type": dict(sorted(failed_by_check.items())),
+        "failed_scenarios": failed_scenarios,
+    }
+
+
+def render_report(summary: dict) -> str:
+    lines = [
+        "# Rollout Adapter Audit",
+        "",
+        f"- Total checks: `{summary['total_checks']}`",
+        f"- Failed checks: `{summary['failed_checks']}`",
+        f"- Failed scenarios: `{', '.join(summary['failed_scenarios']) if summary['failed_scenarios'] else 'none'}`",
+        "",
+        "## Check Summary",
+        "| Check | Count | Failed |",
+        "| --- | ---: | ---: |",
+    ]
+    for check, count in summary["checks_by_type"].items():
+        lines.append(f"| {check} | {count} | {summary['failed_by_type'].get(check, 0)} |")
+    return "\n".join(lines) + "\n"
+
+
 def write_jsonl(path: Path, rows: List[dict]):
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as file:
         for row in rows:
             file.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
+def write_csv(path: Path, rows: List[dict]):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fieldnames = ["scenario_id", "check", "passed"]
+    with path.open("w", encoding="utf-8", newline="") as file:
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({name: row.get(name) for name in fieldnames})
 
 
 def main():
@@ -141,18 +183,23 @@ def main():
     output_dir = Path(args.output_dir)
     audit = audit_rollouts(scenarios)
     failures = [finding for finding in audit if not finding["passed"]]
+    summary = summarize_audit(audit)
     write_jsonl(output_dir / "normalized_scenarios.jsonl", scenarios)
     write_jsonl(output_dir / "critique_pairs.jsonl", build_pairs(scenarios))
     write_jsonl(output_dir / "adapter_audit.jsonl", audit)
     write_jsonl(output_dir / "adapter_failures.jsonl", failures)
+    write_csv(output_dir / "adapter_audit_summary.csv", audit)
+    (output_dir / "adapter_report.md").write_text(render_report(summary), encoding="utf-8")
     metadata = {
         "status": "PASS" if not failures else "FAIL",
         "input_status": "SMOKE_TEST_ONLY" if args.input is None else "REAL_ROLLOUT_INPUT",
         "input": args.input or "DEFAULT_SCENARIOS",
         "scenario_count": len(scenarios),
         "pair_count": len(build_pairs(scenarios)),
-        "audit_checks": len(audit),
-        "audit_failures": len(failures),
+        "audit_checks": summary["total_checks"],
+        "audit_failures": summary["failed_checks"],
+        "audit_failed_scenarios": summary["failed_scenarios"],
+        "audit_failed_by_type": summary["failed_by_type"],
     }
     (output_dir / "adapter_metadata.json").write_text(
         json.dumps(metadata, indent=2, ensure_ascii=False) + "\n",

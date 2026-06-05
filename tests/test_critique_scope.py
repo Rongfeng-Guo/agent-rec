@@ -9,6 +9,8 @@ from user_simulator.evaluation.critique_uplift_pairs import build_pairs
 from user_simulator.evaluation.critique_parser import parse_deterministic
 from user_simulator.evaluation.critique_rollout_adapter import load_rollouts
 from user_simulator.evaluation.critique_rollout_adapter import audit_rollouts
+from user_simulator.evaluation.critique_rollout_adapter import summarize_audit
+from user_simulator.evaluation.critique_rollout_adapter import render_report
 from user_simulator.evaluation.critique_scope_eval import load_scenarios
 from user_simulator.evaluation.summarize_memory_baselines import aggregate
 from user_simulator.evaluation.validate_critique_scenarios import validate_scenarios
@@ -131,6 +133,26 @@ def test_rollout_adapter_audit_flags_misaligned_parser_input():
     findings = audit_rollouts([scenario])
     failed = [finding for finding in findings if not finding["passed"]]
     assert any(finding["check"] == "deterministic_parser_alignment" for finding in failed)
+
+def test_rollout_adapter_audit_summary_counts_failures():
+    scenario = dict(load_rollouts(None)[0])
+    scenario["critiques"] = [dict(scenario["critiques"][0], target="Politics")]
+    summary = summarize_audit(audit_rollouts([scenario]))
+    assert summary["failed_checks"] == 1
+    assert summary["failed_scenarios"] == [scenario["id"]]
+    assert summary["failed_by_type"] == {"deterministic_parser_alignment": 1}
+
+
+def test_rollout_adapter_report_mentions_failed_scenarios():
+    report = render_report({
+        "total_checks": 3,
+        "failed_checks": 1,
+        "checks_by_type": {"deterministic_parser_alignment": 1, "branch_length_consistency": 1, "follow_outperforms_at_least_one_counterfactual": 1},
+        "failed_by_type": {"deterministic_parser_alignment": 1},
+        "failed_scenarios": ["temporary_ufc_fatigue"],
+    })
+    assert "temporary_ufc_fatigue" in report
+    assert "deterministic_parser_alignment" in report
 
 
 def test_noisy_scenario_set_validates():
