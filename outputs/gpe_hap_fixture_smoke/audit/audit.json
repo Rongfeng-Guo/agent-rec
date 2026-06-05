@@ -8,9 +8,11 @@
   "skipped_row_count": 0,
   "parse_error_count": 0,
   "task_type_counts": {
-    "generic": 3
+    "ask": 1,
+    "recommend": 1,
+    "search": 1
   },
-  "unknown_task_type_count": 3,
+  "unknown_task_type_count": 0,
   "branch_rollout_count": 9,
   "dpo_pair_count": 6,
   "cdpo_pair_count": 6,

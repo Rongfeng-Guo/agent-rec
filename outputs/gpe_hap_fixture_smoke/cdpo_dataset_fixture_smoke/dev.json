@@ -37,12 +37,12 @@
       "origin_source": "gpe_hap_refinement_trace",
       "origin_proxy": "gpe_hap_refinement_proxy",
       "state_snapshot_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
-      "git_commit": "bbfcd85f3a6d5fcf1439268131772a83122b1fb3",
+      "git_commit": "a705125d71868c61f4e8b3e914d478b8e0f5a4b8",
       "git_branch": "codex/driftaware-structured-memory"
     },
     "state_snapshot_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
     "split": "dev",
-    "git_commit": "bbfcd85f3a6d5fcf1439268131772a83122b1fb3",
+    "git_commit": "a705125d71868c61f4e8b3e914d478b8e0f5a4b8",
     "git_branch": "codex/driftaware-structured-memory"
   },
   {
@@ -83,12 +83,12 @@
       "origin_source": "gpe_hap_refinement_trace",
       "origin_proxy": "gpe_hap_refinement_proxy",
       "state_snapshot_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
-      "git_commit": "bbfcd85f3a6d5fcf1439268131772a83122b1fb3",
+      "git_commit": "a705125d71868c61f4e8b3e914d478b8e0f5a4b8",
       "git_branch": "codex/driftaware-structured-memory"
     },
     "state_snapshot_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
     "split": "dev",
-    "git_commit": "bbfcd85f3a6d5fcf1439268131772a83122b1fb3",
+    "git_commit": "a705125d71868c61f4e8b3e914d478b8e0f5a4b8",
     "git_branch": "codex/driftaware-structured-memory"
   }
 ]

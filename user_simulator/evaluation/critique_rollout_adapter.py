@@ -195,6 +195,7 @@ def normalize_rollout(row: dict, index: int) -> dict:
     if not _has_branch_payload(row):
         return {
             **row,
+            "task_type": normalize_task_type(row.get("task_type", "")),
             "_adapter_source": "value_only",
             "_adapter_point_index": 0,
             "_adapter_branch_rows": materialize_branch_rows_from_values(row, index=index),
@@ -206,6 +207,7 @@ def normalize_rollout(row: dict, index: int) -> dict:
         "critique_type": row["critique_type"],
         "utterance": row["utterance"],
         "critiques": row["critiques"],
+        "task_type": normalize_task_type(row.get("task_type", "")),
         "post_expiry_items": row.get("post_expiry_items", []),
         "follow_value": extract_branch_values(branches["follow"]) or [],
         "ignore_value": extract_branch_values(branches["ignore"]) or [],
@@ -322,6 +324,7 @@ def normalize_trace_rollout(row: dict, index: int) -> dict:
         "critique_type": row.get("critique_type", task_type),
         "utterance": row.get("input", ""),
         "critiques": state_snapshot["event"]["critiques"],
+        "task_type": task_type,
         "post_expiry_items": row.get("post_expiry_items", []),
         "follow_value": follow_value,
         "ignore_value": ignore_value,

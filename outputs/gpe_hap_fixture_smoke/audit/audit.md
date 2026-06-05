@@ -27,4 +27,6 @@
 - uplift_missing_count: `0`
 
 ## Task Types
-- generic: `3`
+- ask: `1`
+- recommend: `1`
+- search: `1`
