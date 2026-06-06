@@ -3,8 +3,6 @@ import json
 from pathlib import Path
 import textwrap
 
-from openai import OpenAI
-
 
 DEBUG_DIR = Path("outputs/server184_gimo/prompt_ira_debug")
 
@@ -229,9 +227,20 @@ def parse_json_response(
         raise
 
 
+def make_openai_client(base_url: str, api_key: str):
+    try:
+        from openai import OpenAI
+    except ModuleNotFoundError as exc:
+        raise ModuleNotFoundError(
+            "The openai package is required to instantiate OpenAIClient or OpenAIChatClient. "
+            "JSON parsing helpers can be used without it."
+        ) from exc
+    return OpenAI(base_url=base_url, api_key=api_key)
+
+
 class OpenAIClient:
     def __init__(self, base_url: str, api_key: str, model_path: str, response_format=None):
-        self.client = OpenAI(base_url=base_url, api_key=api_key)
+        self.client = make_openai_client(base_url=base_url, api_key=api_key)
         self.model_path = model_path
         self.response_format = response_format
         self.base_url = base_url
@@ -304,7 +313,7 @@ class OpenAIClient:
 
 class OpenAIChatClient:
     def __init__(self, base_url: str, api_key: str, model_path: str, response_format=None):
-        self.client = OpenAI(base_url=base_url, api_key=api_key)
+        self.client = make_openai_client(base_url=base_url, api_key=api_key)
         self.model_path = model_path
         self.response_format = response_format
         self.base_url = base_url
