@@ -228,6 +228,64 @@ def fuse_ranked_lists(
     raise ValueError(f"Unknown fusion method: {method}")
 
 
+def build_fusion_retrieval_row(
+    fusion_spec: Mapping[str, Any],
+    sample_retrieval_rows: Mapping[Tuple[str, str], Mapping[str, Any]],
+    sample_id: str,
+    target_item_id: str,
+    true_route: Sequence[Any],
+    topks: Sequence[int],
+    fusion_method: str,
+    fusion_rrf_k: float,
+    per_route_topk: int | None,
+) -> Dict[str, Any]:
+    member_rows = []
+    for query_source, mode in fusion_spec["members"]:
+        row = sample_retrieval_rows.get((query_source, mode))
+        if row is None:
+            available = sorted(f"{source}:{mode_name}" for source, mode_name in sample_retrieval_rows)
+            raise ValueError(
+                f"Fusion member {query_source}:{mode} was not produced for sample {sample_id}. "
+                f"Available members: {available}"
+            )
+        member_rows.append(row)
+
+    max_k = max(topks)
+    ranked_ids = fuse_ranked_lists(
+        [row["ranked_ids"] for row in member_rows],
+        max_k=max_k,
+        method=fusion_method,
+        rrf_k=fusion_rrf_k,
+    )
+    match_rank = None
+    for rank, item_id in enumerate(ranked_ids, start=1):
+        if item_id == target_item_id:
+            match_rank = rank
+            break
+    candidate_pool = {item_id for row in member_rows for item_id in row["ranked_ids"][:max_k]}
+    return {
+        "query_source": "fusion",
+        "effective_query_source": "fusion",
+        "subset": member_rows[0]["subset"],
+        "domain": member_rows[0]["domain"],
+        "mode": f"fusion_{fusion_spec['name']}",
+        "sample_id": sample_id,
+        "target_item_id": target_item_id,
+        "true_route": route_to_text(true_route),
+        "route_candidates": [],
+        "ranked_ids": ranked_ids,
+        "match_rank": match_rank,
+        "latency_ms": sum(float(row.get("latency_ms", 0.0)) for row in member_rows),
+        "fallback_used": any(bool(row.get("fallback_used")) for row in member_rows),
+        "candidate_pool_size": len(candidate_pool),
+        "candidate_pool_hit": target_item_id in candidate_pool,
+        "num_route_candidates": sum(int(row.get("num_route_candidates", 0)) for row in member_rows),
+        "merge_strategy": f"fusion_{fusion_method}",
+        "per_route_topk": per_route_topk,
+        "fusion_members": [f"{source}:{mode}" for source, mode in fusion_spec["members"]],
+    }
+
+
 def load_domain_query_source_config(path: str | Path | None) -> Dict[str, Any]:
     if path is None:
         return {}
@@ -932,50 +990,19 @@ def main() -> None:
                                 sample_retrieval_rows[(query_source, retrieval_row["mode"])] = retrieval_row
 
                     for fusion_spec in fusion_specs:
-                        member_rows = []
-                        for query_source, mode in fusion_spec["members"]:
-                            row = sample_retrieval_rows.get((query_source, mode))
-                            if row is None:
-                                available = sorted(f"{source}:{mode_name}" for source, mode_name in sample_retrieval_rows)
-                                raise ValueError(
-                                    f"Fusion member {query_source}:{mode} was not produced for sample {sample_id}. "
-                                    f"Available members: {available}"
-                                )
-                            member_rows.append(row)
-                        ranked_ids = fuse_ranked_lists(
-                            [row["ranked_ids"] for row in member_rows],
-                            max_k=max(args.topk),
-                            method=args.fusion_method,
-                            rrf_k=args.fusion_rrf_k,
+                        retrieval_rows.append(
+                            build_fusion_retrieval_row(
+                                fusion_spec=fusion_spec,
+                                sample_retrieval_rows=sample_retrieval_rows,
+                                sample_id=sample_id,
+                                target_item_id=target_item_id,
+                                true_route=true_route,
+                                topks=args.topk,
+                                fusion_method=args.fusion_method,
+                                fusion_rrf_k=args.fusion_rrf_k,
+                                per_route_topk=args.per_route_topk,
+                            )
                         )
-                        match_rank = None
-                        for rank, item_id in enumerate(ranked_ids, start=1):
-                            if item_id == target_item_id:
-                                match_rank = rank
-                                break
-                        candidate_pool = {item_id for row in member_rows for item_id in row["ranked_ids"][: max(args.topk)]}
-                        fusion_row = {
-                            "query_source": "fusion",
-                            "effective_query_source": "fusion",
-                            "subset": subset_name,
-                            "domain": domain,
-                            "mode": f"fusion_{fusion_spec['name']}",
-                            "sample_id": sample_id,
-                            "target_item_id": target_item_id,
-                            "true_route": route_to_text(true_route),
-                            "route_candidates": [],
-                            "ranked_ids": ranked_ids,
-                            "match_rank": match_rank,
-                            "latency_ms": sum(float(row.get("latency_ms", 0.0)) for row in member_rows),
-                            "fallback_used": any(bool(row.get("fallback_used")) for row in member_rows),
-                            "candidate_pool_size": len(candidate_pool),
-                            "candidate_pool_hit": target_item_id in candidate_pool,
-                            "num_route_candidates": sum(int(row.get("num_route_candidates", 0)) for row in member_rows),
-                            "merge_strategy": f"fusion_{args.fusion_method}",
-                            "per_route_topk": args.per_route_topk,
-                            "fusion_members": [f"{source}:{mode}" for source, mode in fusion_spec["members"]],
-                        }
-                        retrieval_rows.append(fusion_row)
 
     summary_rows = grouped_summary(retrieval_rows, ["query_source", "subset", "mode"], args.topk, train_item_set)
     summary_by_domain_rows = grouped_summary(retrieval_rows, ["query_source", "subset", "domain", "mode"], args.topk, train_item_set)

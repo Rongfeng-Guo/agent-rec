@@ -124,3 +124,32 @@ Validation selection with existing `Prefix1QueryHead` candidates:
 Interpretation:
 
 The validation-selected selector is now reproducible, but it does not yet pass the first target on cold evaluation. It selects `Game=residual` from warm validation, while the earlier cold diagnostic needed `Game=learned` to cross `0.029`; this is a train-validation to cold-domain mismatch, not a memory bottleneck. Existing `Prefix1QueryHead` checkpoints improve warm validation metrics but do not transfer to predicted-route cold retrieval. Do not expand prefix-2 soft routing yet; the next useful step is a selector/head trained and validated against a cold-like objective, or a more robust query fusion that does not hard-switch by domain.
+
+## 2026-06-07 Prefix-1 Query Fusion
+
+Ran a non-hard-switch query fusion check for prefix-1 bucket retrieval. This run does not use `domain_adaptive` or any Book/Game mapping selected from cold rows. It evaluates ordinary query sources (`learned`, `residual`, `pooled`, `mean`) and fuses their ranked lists after prefix-1 top-k bucket zscore rerank.
+
+Main output directories:
+
+- RRF fusion: `outputs/oracle_route_memory/prefix1_query_fusion_rrf_20260607_002130`
+- round-robin fusion: `outputs/oracle_route_memory/prefix1_query_fusion_roundrobin_20260607_002130`
+
+Best valid cold Recall@50 from this run:
+
+- `fusion_lr_p1t4` = `learned:predicted_route_p1_top4_zscore + residual:predicted_route_p1_top4_zscore`
+- fusion method: `round_robin`
+- cold Recall@50: `0.0319`, crossing the first target threshold `0.029`
+- Book Recall@50: `0.0314`
+- Game Recall@50: `0.0325`
+- CandidatePoolHitRate equals Recall@50 for this fused mode on both Book and Game, so the remaining loss in this setting is primarily candidate generation/query coverage, not final fusion ordering.
+
+Other fusion outcomes:
+
+- RRF `learned+residual` prefix-1 top-4 fusion only reaches `0.0232`.
+- round-robin `learned+pooled` prefix-1 top-4 fusion reaches `0.0232`.
+- round-robin all-source prefix-1 top-4 fusion reaches `0.0290`, just at the threshold but below `learned+residual`.
+- Prefix-1 top-2 fusion and prefix-1 top-1 fusion remain weak.
+
+Interpretation:
+
+This is the first valid predicted prefix-1 result above `0.029` without oracle routes and without a cold-selected domain hard switch. The improvement comes from preserving complementary `learned` and `residual` ranked lists inside prefix-1 top-4 buckets. Prefix-2 soft routing should still wait: the next useful step is to make this fusion policy validation-selected or learned, then test whether it remains stable across route score weight, per-route top-k, and a cold-like validation split.

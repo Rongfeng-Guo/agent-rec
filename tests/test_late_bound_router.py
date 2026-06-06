@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-import torch
 import json
+
+import pytest
+import torch
 
 from genrec.models.late_bound_router import LateBoundRouter
 
@@ -29,6 +31,7 @@ def test_late_bound_router_joint_log_probs() -> None:
 from genrec.training.router_dataset import RouteVocab
 from scripts.oracle_route_memory.eval_predicted_route import (
     add_fusion_query_sources,
+    build_fusion_retrieval_row,
     enumerate_prefix1_candidates,
     fuse_ranked_lists,
     load_domain_query_source_config,
@@ -92,6 +95,7 @@ def test_domain_query_source_config_loads_mapping(tmp_path) -> None:
     assert config["default_domain_query_source"] == "pooled"
     assert config["metadata"] == {"selector_type": "validation"}
 
+
 def test_fusion_specs_parse_and_add_query_sources() -> None:
     specs = parse_fusion_specs([
         "best=learned:domain_prior_p1+domain_adaptive:predicted_route_p1_top2_zscore"
@@ -117,6 +121,65 @@ def test_fuse_ranked_lists_rrf_and_round_robin() -> None:
 
     assert fuse_ranked_lists(ranked_lists, max_k=3, method="rrf", rrf_k=60.0)[0] == "target"
     assert fuse_ranked_lists(ranked_lists, max_k=3, method="round_robin") == ["a", "target", "b"]
+
+
+def test_build_fusion_retrieval_row_combines_members() -> None:
+    fusion_spec = {
+        "name": "lr_p1t4",
+        "members": [
+            ("learned", "predicted_route_p1_top4_zscore"),
+            ("residual", "predicted_route_p1_top4_zscore"),
+        ],
+    }
+    sample_rows = {
+        ("learned", "predicted_route_p1_top4_zscore"): {
+            "subset": "cold",
+            "domain": "Book",
+            "ranked_ids": ["a", "target", "c"],
+            "latency_ms": 1.25,
+            "fallback_used": False,
+            "num_route_candidates": 2,
+        },
+        ("residual", "predicted_route_p1_top4_zscore"): {
+            "subset": "cold",
+            "domain": "Book",
+            "ranked_ids": ["target", "b", "a"],
+            "latency_ms": 2.5,
+            "fallback_used": True,
+            "num_route_candidates": 3,
+        },
+    }
+
+    row = build_fusion_retrieval_row(
+        fusion_spec=fusion_spec,
+        sample_retrieval_rows=sample_rows,
+        sample_id="sample-1",
+        target_item_id="target",
+        true_route=(1, 2),
+        topks=[10, 20, 50],
+        fusion_method="round_robin",
+        fusion_rrf_k=60.0,
+        per_route_topk=50,
+    )
+
+    assert row["query_source"] == "fusion"
+    assert row["mode"] == "fusion_lr_p1t4"
+    assert row["ranked_ids"][:4] == ["a", "target", "b", "c"]
+    assert row["match_rank"] == 2
+    assert row["candidate_pool_hit"] is True
+    assert row["candidate_pool_size"] == 4
+    assert row["fallback_used"] is True
+    assert row["num_route_candidates"] == 5
+    assert row["true_route"] == "1|2"
+
+
+def test_build_fusion_retrieval_row_reports_missing_member() -> None:
+    fusion_spec = {"name": "bad", "members": [("learned", "present"), ("residual", "missing")]}
+    sample_rows = {("learned", "present"): {"subset": "cold", "domain": "Book", "ranked_ids": ["a"]}}
+
+    with pytest.raises(ValueError, match="Fusion member residual:missing"):
+        build_fusion_retrieval_row(fusion_spec, sample_rows, "sample-1", "target", (1,), [50], "rrf", 60.0, None)
+
 
 from genrec.training.router_trainer import RouterTrainer, TrainerConfig, evaluate_route_predictions
 from torch.utils.data import DataLoader
