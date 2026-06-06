@@ -4,26 +4,33 @@ from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import openai
 import sys
-from faiss_rank_utils import get_gt_rank
+try:
+    from faiss_rank_utils import get_gt_rank
+except ModuleNotFoundError:
+    get_gt_rank = None
 import os
 from collections import Counter
 # 设置 CUDA 设备为 GPU 0（可以是 0, 1, 2,...）
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"  # 只使用 GPU 0
-from sentence_transformers import SentenceTransformer
-import faiss
+try:
+    from sentence_transformers import SentenceTransformer
+except ModuleNotFoundError:
+    SentenceTransformer = None
+try:
+    import faiss
+except ModuleNotFoundError:
+    faiss = None
 import random
 from refine_prompts_v2 import ask_potential_function_template, recommendation_potential_function_template, search_potential_function_template, ask_policy_improvement_template, recommendation_policy_improvement_template, search_policy_improvement_template, ask_potential_eval_template, recommendation_potential_eval_template, ask_policy_improvement_abpotential_template, recommendation_policy_improvement_abpotential_template, search_policy_improvement_abpotential_template
 # 获取当前工作目录
-current_dir = os.getcwd()
-
-# 获取父级目录路径
-parent_dir = os.path.abspath(os.path.join(current_dir, '../../'))
-
-# 将父级目录添加到 sys.path
-sys.path.insert(0, parent_dir)
+from pathlib import Path
+repo_root = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(repo_root))
 from collections import defaultdict
 from datetime import datetime  # Import datetime for timestamp functionality
-from model.model import OpenAIClient
+try:
+    from model.model import OpenAIClient
+except ModuleNotFoundError:
+    from user_simulator.persona.model.model import OpenAIClient
 import re
 
 def parse_action(string):
@@ -31,7 +38,7 @@ def parse_action(string):
     # 1. "Action 2: Search[circus setting mysterious books with quirky characters and supernatural elements]"
     # 2. "Search[circus setting mysterious books with quirky characters and supernatural elements]"
     pattern = r'^(?:Action\s+\d+:\s+)?(\w+)\[(.+)\]$'
-    
+
     match = re.match(pattern, string)
     if match:
         action_type = match.group(1).lower()  # 提取动作类型并转换为小写
@@ -72,7 +79,7 @@ def refine_single_rec_trajectory(openai_client, scratchpad_input, original_respo
             Sample_num=sample_num
         )
         return prompt
-    
+
     def _build_recommendation_policy_improvement_abpotential_prompt(generative_reward):
         prompt = recommendation_policy_improvement_abpotential_template.format(
             Scratchpad=scratchpad_input,
@@ -80,7 +87,7 @@ def refine_single_rec_trajectory(openai_client, scratchpad_input, original_respo
             Sample_num=sample_num
         )
         return prompt
-    
+
     def _build_recommendation_policy_improvement_prompt(generative_reward):
         prompt = recommendation_policy_improvement_template.format(
             Scratchpad=scratchpad_input,
@@ -89,7 +96,7 @@ def refine_single_rec_trajectory(openai_client, scratchpad_input, original_respo
             Sample_num=sample_num
         )
         return prompt
-    
+
     def _build_recommendation_potential_eval_prompt(refinements):
         """
         构建推荐潜在函数评估的 prompt。
@@ -128,7 +135,7 @@ def refine_single_rec_trajectory(openai_client, scratchpad_input, original_respo
         except Exception as e:
             log["potential_reward_error"] = str(e)
             return None, True, log
-        
+
         try:
             policy_prompt = _build_recommendation_policy_improvement_prompt(potential_reward)
             improved_policy = openai_client.get_single_chat_completion(policy_prompt).strip()
@@ -179,7 +186,7 @@ def refine_single_search_trajectory(openai_client, input, original_response, gro
             Ground_truth=ground_truth,
             Sample_num=sample_num
         )
-    
+
     def _build_search_policy_improvement_abpotential_prompt():
         return search_policy_improvement_abpotential_template.format(
             Scratchpad=input,
@@ -242,7 +249,7 @@ def refine_single_ask_trajectory(domain, openai_client, input, original_response
             Ground_truth=ground_truth,
             Sample_num=sample_num
         )
-    
+
     def _build_ask_policy_improvement_abpotential_prompt():
         return ask_policy_improvement_abpotential_template.format(
             Domain=domain,
@@ -335,7 +342,7 @@ def is_valid_format(text, debug=False):
 
     pattern = r"^(Ask\[.*\]|Recommend\[.*\]|Response\[.*\]|Search\[.*\])$"
     match = re.match(pattern, text, re.DOTALL)
-    
+
     if not match:
         if debug:
             print("❌ Regex did not match.")
@@ -425,14 +432,14 @@ def validate_ask(openai_client, scratchpad, original, refinements, ground_truth,
             Sample_num=sample_num
         )
         return prompt
-    
+
     eval_prompt = _eval_ask_refinement()
     try:
         response = openai_client.get_single_chat_completion(eval_prompt).strip()
     except Exception as e:
         print(f"Ask Evaluation Error: {e}")
         return None, False
-    
+
     parsed_evaluation = parse_json(response)
 
     return parsed_evaluation.get("refinement_output"), not parsed_evaluation.get("is_better", False)
@@ -458,14 +465,14 @@ def validate_recommendation(openai_client, scratchpad, original, refinements, gr
             Sample_num=sample_num
         )
         return prompt
-    
+
     eval_prompt = _eval_rec_refinement()
     try:
         response = openai_client.get_single_chat_completion(eval_prompt).strip()
     except Exception as e:
         print(f"Ask Evaluation Error: {e}")
         return None, False
-    
+
     parsed_evaluation = parse_json(response)
 
     return parsed_evaluation.get("refinement_output"), not parsed_evaluation.get("is_better", False)

@@ -105,13 +105,18 @@ def build_manifest(input_path: Path, validation_path: Path | None, dev_fraction:
     by_method = Counter(row.get("method", "UNKNOWN") for row in rows)
     by_scenario = Counter(row.get("scenario", "UNKNOWN") for row in rows)
     by_rejected = Counter(row.get("rejected", {}).get("branch", "UNKNOWN") for row in rows)
+    by_source = Counter(row.get("metadata", {}).get("source", "UNKNOWN") for row in rows)
+    by_proxy = Counter(row.get("metadata", {}).get("proxy", "UNKNOWN") for row in rows)
+    by_provenance = Counter(row.get("metadata", {}).get("provenance", "UNKNOWN") for row in rows)
+    source = next((source for source in by_source if source != "UNKNOWN"), "CritiqueWorld")
+    proxy = next((proxy for proxy in by_proxy if proxy != "UNKNOWN"), "controlled counterfactual rollout proxy")
     splits = split_ids(rows, dev_fraction)
 
     return {
         "dataset_name": input_path.parent.name + "_cdpo",
-        "source": "CritiqueWorld",
+        "source": source,
         "status": "SMOKE_TEST_ONLY",
-        "proxy": "controlled counterfactual rollout proxy",
+        "proxy": proxy,
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "git_commit": git_value(["rev-parse", "HEAD"]),
         "git_branch": git_value(["branch", "--show-current"]),
@@ -127,6 +132,9 @@ def build_manifest(input_path: Path, validation_path: Path | None, dev_fraction:
         "by_method": dict(sorted(by_method.items())),
         "by_scenario": dict(sorted(by_scenario.items())),
         "by_rejected_branch": dict(sorted(by_rejected.items())),
+        "by_source": dict(sorted(by_source.items())),
+        "by_proxy": dict(sorted(by_proxy.items())),
+        "by_provenance": dict(sorted(by_provenance.items())),
         "splits": {
             "dev_fraction": dev_fraction,
             "train_count": len(splits["train"]),

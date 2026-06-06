@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*$py.class
+
+.pytest_cache/
+.mypy_cache/
+
+outputs/
+*.log
+nohup.out
+
+.env
+.env.*
+!.env.*.example

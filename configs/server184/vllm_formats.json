@@ -1,0 +1,126 @@
+{
+  "policy_selector": {
+    "type": "json_schema",
+    "json_schema": {
+      "name": "policy_selector",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "policy": {
+            "type": "string",
+            "enum": [
+              "respond_to_clarification",
+              "provide_feedback_on_recommendation",
+              "end_conversation"
+            ]
+          }
+        },
+        "required": [
+          "reason",
+          "policy"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "responser": {
+    "type": "json_schema",
+    "json_schema": {
+      "name": "responser",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "response": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "response"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "recommender_rater": {
+    "type": "json_schema",
+    "json_schema": {
+      "name": "recommender_rater",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "rating": {
+            "type": [
+              "string",
+              "number"
+            ]
+          }
+        },
+        "required": [
+          "reason",
+          "rating"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "policy_rater": {
+    "type": "json_schema",
+    "json_schema": {
+      "name": "policy_rater",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "rating": {
+            "type": [
+              "string",
+              "number"
+            ]
+          }
+        },
+        "required": [
+          "reason",
+          "rating"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "expression_rater": {
+    "type": "json_schema",
+    "json_schema": {
+      "name": "expression_rater",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "rating": {
+            "type": [
+              "string",
+              "number"
+            ]
+          }
+        },
+        "required": [
+          "reason",
+          "rating"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+}

@@ -1,4 +1,14 @@
-from langchain.prompts import PromptTemplate
+try:
+    from langchain.prompts import PromptTemplate
+except ModuleNotFoundError:
+    class PromptTemplate:
+        def __init__(self, input_variables=None, template="", **kwargs):
+            self.input_variables = input_variables or kwargs.get("input_variabels", [])
+            self.template = template
+
+        def format(self, **kwargs):
+            return self.template.format(**kwargs)
+
 
 ASK_POTENTIAL_FUNCTION_PROMPT_v1 = """
 You are a generative potential function specifically designed for the recommendation agent scenario. Your role is to produce natural language feedback analyzing the effectiveness of the original clarification question and suggesting how it could be improved.
@@ -51,8 +61,8 @@ sample_k:
 ## Your Task:
 
 ### Inputs:
-- Scratchpad: {Scratchpad}  
-- Original Response: {Original_response}  
+- Scratchpad: {Scratchpad}
+- Original Response: {Original_response}
 - Ground Truth Item Description: {Ground_truth}
 - sample_k: {Sample_num}
 
@@ -108,8 +118,8 @@ ground_truth_item_description:
 ## Your Task:
 
 ### Inputs:
-- Scratchpad: {Scratchpad}  
-- Original Response: {Original_response}  
+- Scratchpad: {Scratchpad}
+- Original Response: {Original_response}
 - Ground Truth Item Description: {Ground_truth}
 
 ### Output Format
@@ -146,10 +156,10 @@ Your responsibilities:
 
 ### Types of Query Rewrites (can be combined):
 
-- **Coverage-Oriented**: Retain all elements of the original intent; verbose but thorough.  
-- **Salience-Oriented**: Focus on only the most critical, distinctive parts of the intent; concise and precise.  
-- **Semantic Variants**: Use synonyms or related phrases to rephrase the query.  
-- **Structural Reordering**: Rearrange keywords or their groupings to change emphasis.  
+- **Coverage-Oriented**: Retain all elements of the original intent; verbose but thorough.
+- **Salience-Oriented**: Focus on only the most critical, distinctive parts of the intent; concise and precise.
+- **Semantic Variants**: Use synonyms or related phrases to rephrase the query.
+- **Structural Reordering**: Rearrange keywords or their groupings to change emphasis.
 - **Contextual Expansion**: Add likely missing qualifiers or modifiers based on the user’s original intent.
 
 ---
@@ -164,9 +174,9 @@ Your responsibilities:
 
 ## Input Fields:
 
-- Scratchpad: {Scratchpad}  
-- Original Search Query: {Original_response}  
-- Target Item Description: {Ground_truth}  
+- Scratchpad: {Scratchpad}
+- Original Search Query: {Original_response}
+- Target Item Description: {Ground_truth}
 - Number of Candidates (`sample_k`): {Sample_num}
 
 ---
@@ -225,8 +235,8 @@ Additionally, please include recommendations for **two improvement strategies**:
 ## Your Task:
 
 ### Inputs:
-- Scratchpad: {Scratchpad}  
-- Original Response: {Original_response}  
+- Scratchpad: {Scratchpad}
+- Original Response: {Original_response}
 - Ground Truth Item Description: {Ground_truth}
 
 ### Output Format
@@ -302,8 +312,8 @@ You will be given the following inputs:
 ## Your Task:
 
 ### Inputs:
-- Scratchpad: {Scratchpad}  
-- Original Response: {Original_response}  
+- Scratchpad: {Scratchpad}
+- Original Response: {Original_response}
 - Ground Truth Item Description: {Ground_truth}
 - Number of Candidates (`sample_k`): {Sample_num}
 
@@ -318,7 +328,7 @@ You must generate a single JSON object with the following field:
 """
 
 RECOMMENDATION_POTENTIAL_FUNCTION_PROMPT = """
-You are a **generative potential function** specifically designed for the recommendation agent scenario.  
+You are a **generative potential function** specifically designed for the recommendation agent scenario.
 Your role is to **produce natural language feedback analyzing the effectiveness of the original recommendation response and suggesting improvements.**
 
 ---
@@ -373,8 +383,8 @@ You will receive the following inputs:
 ## Your Task:
 
 ### Inputs:
-- Scratchpad: {Scratchpad}  
-- Original Response: {Original_response}  
+- Scratchpad: {Scratchpad}
+- Original Response: {Original_response}
 - Ground Truth Item Description: {Ground_truth}
 
 ### Output Format
@@ -422,8 +432,8 @@ format: Ask[<your rewritten clarification question>]"
 ## Your Task:
 
 ### Inputs:
-- Scratchpad: {Scratchpad}  
-- Original Response: {Original_response}  
+- Scratchpad: {Scratchpad}
+- Original Response: {Original_response}
 
 ### Output Format
 {{
@@ -477,8 +487,8 @@ format: Ask[<your rewritten clarification question>]"
 ## Your Task:
 
 ### Inputs:
-- Scratchpad: {Scratchpad}  
-- Original Response: {Original_response}  
+- Scratchpad: {Scratchpad}
+- Original Response: {Original_response}
 - Generative Reward: {Generative_reward}
 
 ### Output Format
@@ -509,13 +519,13 @@ Each refinement should:
 ## Your Task:
 
 ### Inputs:
-- Scratchpad: {Scratchpad}  
-- Original Search Query: {Original_response}  
+- Scratchpad: {Scratchpad}
+- Original Search Query: {Original_response}
 
 ### Output Format
 {{
   "refinement_output": [
-    "Search[...]", 
+    "Search[...]",
     ...
   ]
 }}
@@ -539,14 +549,14 @@ Each refinement should:
 ## Your Task:
 
 ### Inputs:
-- Scratchpad: {Scratchpad}  
-- Original Search Query: {Original_response}  
+- Scratchpad: {Scratchpad}
+- Original Search Query: {Original_response}
 - Generative Reward: {Generative_reward}
 
 ### Output Format
 {{
   "refinement_output": [
-    "Search[...]", 
+    "Search[...]",
     ...
   ]
 }}
@@ -586,7 +596,7 @@ Each refinement should:
 ### Output Format
 {{
   "refinement_output": [
-    "Recommend[...]", 
+    "Recommend[...]",
     ...
   ]
 }}
@@ -626,7 +636,7 @@ Each refinement should:
 ### Output Format
 {{
   "refinement_output": [
-    "Recommend[...]", 
+    "Recommend[...]",
     ...
   ]
 }}
@@ -682,10 +692,10 @@ refinement_output:
 ## Your Task:
 
 ### Inputs:
-- Scratchpad: {Scratchpad}  
-- Original Response: {Original_response}  
-- Ground Truth: {Ground_truth} 
-- Refinement_output: {Refinement_output} 
+- Scratchpad: {Scratchpad}
+- Original Response: {Original_response}
+- Ground Truth: {Ground_truth}
+- Refinement_output: {Refinement_output}
 
 ### Output Format
 {{
@@ -729,10 +739,10 @@ Instructions:
 ## Your Task:
 
 ### Inputs:
-- Scratchpad: {Scratchpad}  
-- Original Response: {Original_response}  
-- Ground Truth: {Ground_truth} 
-- Refinement_output: {Refinement_output} 
+- Scratchpad: {Scratchpad}
+- Original Response: {Original_response}
+- Ground Truth: {Ground_truth}
+- Refinement_output: {Refinement_output}
 
 ### Output Format
 {{

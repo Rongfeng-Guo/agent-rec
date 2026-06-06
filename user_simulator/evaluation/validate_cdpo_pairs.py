@@ -24,6 +24,8 @@ REQUIRED_TOP_LEVEL = {
 }
 REQUIRED_BRANCH_FIELDS = {"branch", "policy", "trajectory"}
 VALID_REJECTED_BRANCHES = {"ignore", "over_apply"}
+VALID_SOURCES = {"CritiqueWorld", "RealBranchReplay"}
+VALID_PROXIES = {"controlled counterfactual rollout proxy", "controlled real user simulator replay proxy"}
 
 
 def read_jsonl(path: Path) -> List[dict]:
@@ -88,10 +90,12 @@ def validate_pair(row: dict) -> list[str]:
     else:
         if metadata.get("format") != "llamafactory_dpo_bridge":
             errors.append(f"line {line_no}: metadata.format must be llamafactory_dpo_bridge")
-        if metadata.get("source") != "CritiqueWorld":
-            errors.append(f"line {line_no}: metadata.source must be CritiqueWorld")
-        if metadata.get("proxy") != "controlled counterfactual rollout proxy":
+        if metadata.get("source") not in VALID_SOURCES:
+            errors.append(f"line {line_no}: metadata.source must be one of {sorted(VALID_SOURCES)}")
+        if metadata.get("proxy") not in VALID_PROXIES:
             errors.append(f"line {line_no}: metadata.proxy must describe the controlled proxy")
+        if metadata.get("source") == "RealBranchReplay" and not metadata.get("provenance"):
+            errors.append(f"line {line_no}: RealBranchReplay rows must include provenance")
 
     return errors
 

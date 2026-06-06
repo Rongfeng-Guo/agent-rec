@@ -1,163 +1,147 @@
-import json
-import re
-import os
-import sys
 import argparse
+import json
+import os
 import random
-from tqdm import tqdm
+import sys
 from datetime import datetime
-from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 
-import faiss
-from sentence_transformers import SentenceTransformer
-# 获取父级目录路径
 from rewrite_func import refine_rec_trajectories, refine_ask_trajectories, refine_search_trajectories
-from refine_prompts_v2 import ask_potential_function_template, recommendation_potential_function_template, search_potential_function_template, ask_policy_improvement_template, recommendation_policy_improvement_template, search_policy_improvement_template, ask_potential_eval_template, recommendation_potential_eval_template
-# 获取当前工作目录
-current_dir = os.getcwd()
 
-# 获取父级目录路径
-parent_dir = os.path.abspath(os.path.join(current_dir, '../../'))
+try:
+    from user_simulator.persona.model.model import OpenAIClient
+except ModuleNotFoundError:
+    repo_root = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(repo_root))
+    from user_simulator.persona.model.model import OpenAIClient
 
-# 将父级目录添加到 sys.path
-sys.path.insert(0, parent_dir)
-from model.model import OpenAIClient
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", type=str, default="all", help="Comma-separated modes: recommend, search, ask, or all")
-    parser.add_argument("--domain", type=str, required=True, help="Domain name (e.g., Book, Game, Yelp), case-sensitive")
-    parser.add_argument("--config_path", type=str, default="../../config/api_config.json", help="Path to api_config.json")
-    parser.add_argument("--index_root", type=str, default="../../raw_data/emb", help="Root path to FAISS index folders")
-    parser.add_argument("--model_path", type=str, default="../../crs/tools/all-MiniLM-L6-v2", help="Embedding model path")
-    parser.add_argument("--sample_num", type=int, default=2, help="Number of samples to process")
-    parser.add_argument("--task_limit", type=int, default=None, help="Max number of tasks to refine (across each mode)")
-    parser.add_argument("--no_potential", dest="potential", action="store_false", help="Disable potential function refinement")
-    parser.add_argument("--no_valid", dest="valid", action="store_false", help="Disable validation")
+    parser.add_argument('--mode', type=str, default='all', help='Comma-separated modes: recommend, search, ask, or all')
+    parser.add_argument('--domain', type=str, required=True, help='Domain name (e.g., Book, Game, Yelp), case-sensitive')
+    parser.add_argument('--config_path', type=str, default='config/api_config.json', help='Path to api_config.json')
+    parser.add_argument('--index_root', type=str, default='raw_data/emb', help='Root path to FAISS index folders')
+    parser.add_argument('--model_path', type=str, default='crs/tools/all-MiniLM-L6-v2', help='Embedding model path')
+    parser.add_argument('--sample_num', '--sample-limit', dest='sample_num', type=int, default=2, help='Number of samples to process')
+    parser.add_argument('--task_limit', '--task-limit', dest='task_limit', type=int, default=None, help='Max number of tasks to refine across each mode')
+    parser.add_argument('--input_root', type=str, default=None, help='Directory containing recommend_data.json / ask_data.json / search_data.json')
+    parser.add_argument('--output_dir', type=str, default=None, help='Explicit output directory')
+    parser.add_argument('--base_url', type=str, default=None, help='OpenAI-compatible base URL override')
+    parser.add_argument('--api_key', type=str, default=None, help='OpenAI-compatible API key override')
+    parser.add_argument('--model_name', type=str, default=None, help='Served model alias override')
+    parser.add_argument('--mini_base_url', type=str, default=None, help='Mini-model base URL override')
+    parser.add_argument('--mini_api_key', type=str, default=None, help='Mini-model API key override')
+    parser.add_argument('--mini_model_name', type=str, default=None, help='Mini-model alias override')
+    parser.add_argument('--no_potential', dest='potential', action='store_false', help='Disable potential function refinement')
+    parser.add_argument('--no_valid', dest='valid', action='store_false', help='Disable validation')
+    parser.set_defaults(potential=True, valid=True)
     return parser.parse_args()
 
 
-
-
-def load_json(file_path: str):
-    with open(file_path, 'r', encoding='utf-8') as file:
-        return json.load(file)
-
-
-def load_config(config_path):
-    with open(config_path, 'r') as f:
+def load_json(path: Path):
+    with path.open('r', encoding='utf-8') as f:
         return json.load(f)
 
 
-# def is_valid_format(text):
-#     pattern = r"^(Ask\[[^\[\]]+\]|Recommend\[[^\[\]]+\]|Response\[[^\[\]]+\]|Search\[[^\[\]]+\])$"
-#     return bool(text and re.match(pattern, text))
+def load_config(path: Path):
+    with path.open('r', encoding='utf-8') as f:
+        return json.load(f)
 
 
+def build_client(config: dict, base_url: str | None, api_key: str | None, model_name: str | None):
+    return OpenAIClient(
+        base_url=base_url or config.get('base_url') or 'http://127.0.0.1:8000/v1',
+        api_key=api_key or config.get('api_key') or 'EMPTY',
+        model_path=model_name or config.get('model_path') or 'qwen2.5-3b-instruct',
+    )
 
-def is_valid_format(text, debug=False):
-    if not text:
-        if debug:
-            print("❌ Empty text")
-        return False
 
-    pattern = r"^(Ask\[.*\]|Recommend\[.*\]|Response\[.*\]|Search\[.*\])$"
-    match = re.match(pattern, text, re.DOTALL)
-    
-    if not match:
-        if debug:
-            print("❌ Regex did not match.")
-            print(f"↪ TEXT START:\n{text[:100]}...")
-            print(f"↪ TEXT END:\n{text[-100:]}")
-            print(f"↪ LENGTH: {len(text)}")
-            if text.count("[") != text.count("]"):
-                print("❗ Brackets count mismatch:", text.count("["), "!=", text.count("]"))
-            if not text.strip().endswith("]"):
-                print("❗ Does not end with ]")
-            if not text.strip().startswith(("Ask[", "Recommend[", "Response[", "Search[")):
-                print("❗ Does not start with expected prefix")
-        return False
+def resolve_input_root(repo_root: Path, domain: str, input_root: str | None) -> Path:
+    if input_root:
+        return Path(input_root)
+    return repo_root / 'your' / 'work' / 'dir' / domain / 'bpo'
 
-    return True
 
-def get_strategy(text):
-    match = re.match(r"^(Ask|Recommend|Response|Search)\[.*\]$", text)
-    return match.group(1) if match else None
+def resolve_dataset_path(input_root: Path, filename: str) -> Path:
+    candidate = input_root / filename
+    if candidate.exists():
+        return candidate
+    candidate = input_root / 'bpo' / filename
+    if candidate.exists():
+        return candidate
+    raise FileNotFoundError(f'Missing required input file: {filename} under {input_root}')
+
 
 def main():
     args = parse_args()
+    repo_root = Path(__file__).resolve().parents[1]
+    os.chdir(repo_root)
+
     mode = args.mode.lower()
-    domain = args.domain
-    sample_num = args.sample_num
-    potential = args.potential
-    valid = args.valid
-    print(valid)
-    if mode == "all":
-        active_modes = {"recommend", "search", "ask"}
+    if mode == 'all':
+        active_modes = {'recommend', 'search', 'ask'}
     else:
-        active_modes = set([m.strip() for m in mode.split(",")])
+        active_modes = {m.strip() for m in mode.split(',') if m.strip()}
 
-    index_path = os.path.join(args.index_root, domain, "faiss_index.bin")
-    metadata_path = os.path.join(args.index_root, domain, "metadata.json")
+    input_root = resolve_input_root(repo_root, args.domain, args.input_root)
+    output_dir = Path(args.output_dir) if args.output_dir else repo_root / 'outputs' / 'server184_gimo' / 'gpe_hap_smoke' / datetime.now().strftime('%Y%m%d_%H%M%S')
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-    emb_model = SentenceTransformer(args.model_path)
-    index = faiss.read_index(index_path)
+    config_path = Path(args.config_path)
+    config = load_config(config_path) if config_path.exists() else {}
+    openai_cfg = config.get('openai', {})
+    openai_mini_cfg = config.get('openai_mini', openai_cfg)
 
-    with open(metadata_path, 'r', encoding='utf-8') as f:
-        metadata = json.load(f)
+    openai_client = build_client(openai_cfg, args.base_url, args.api_key, args.model_name)
+    openai_mini_client = build_client(openai_mini_cfg, args.mini_base_url or args.base_url, args.mini_api_key or args.api_key, args.mini_model_name or args.model_name)
 
-    rec_data = load_json(f"your/work/dir/{args.domain}/bpo/recommend_data.json")
-    ask_data = load_json(f"your/work/dir/{args.domain}/bpo/ask_data.json")
-    search_data = load_json(f"your/work/dir/{args.domain}/bpo/search_data.json")
+    rec_tasks = []
+    ask_tasks = []
+    search_tasks = []
+    if 'recommend' in active_modes:
+        rec_data = load_json(resolve_dataset_path(input_root, 'recommend_data.json'))
+        rec_tasks = [(i, d['Instruction'], d['output'], d['ground_truth'], d.get('is_correct'), d.get('is_recall')) for i, d in enumerate(rec_data)]
+    if 'ask' in active_modes:
+        ask_data = load_json(resolve_dataset_path(input_root, 'ask_data.json'))
+        ask_tasks = [(i, d['Instruction'], d['output'], d['ground_truth']) for i, d in enumerate(ask_data)]
+    if 'search' in active_modes:
+        search_data = load_json(resolve_dataset_path(input_root, 'search_data.json'))
+        search_tasks = [(i, d['Instruction'], d['output'], d['gt_title']) for i, d in enumerate(search_data)]
 
-    rec_tasks = [(i, d["Instruction"], d["output"], d["ground_truth"], d["is_correct"], d["is_recall"]) for i, d in enumerate(rec_data)]
-    search_tasks = [(i, d["Instruction"], d["output"], d["gt_title"]) for i, d in enumerate(search_data)]
-    ask_tasks = [(i, d["Instruction"], d["output"], d["ground_truth"]) for i, d in enumerate(ask_data)]
-
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_dir = os.path.join(f"../{domain}/bpo", f"{timestamp}")
-    os.makedirs(output_dir, exist_ok=True)
-
-    config = load_config(args.config_path)["openai"]
-    openai_client = OpenAIClient(
-        base_url=config["base_url"],
-        api_key=config["api_key"],
-        model_path=config["model_path"],
-    )
-
-    mini_config = load_config(args.config_path)["openai_mini"]
-    openai_mini_client = OpenAIClient(
-        base_url=mini_config["base_url"],
-        api_key=mini_config["api_key"],
-        model_path=mini_config["model_path"],
-    )
+    if args.task_limit is not None:
+        rec_tasks = rec_tasks[: args.task_limit]
+        ask_tasks = ask_tasks[: args.task_limit]
+        search_tasks = search_tasks[: args.task_limit]
 
     sft_results = []
     dpo_results = []
     all_logs = []
 
-    if args.task_limit:
-        rec_tasks = rec_tasks[:args.task_limit]
-        ask_tasks = ask_tasks[:args.task_limit]
-        search_tasks = search_tasks[:args.task_limit]
-
-    if "recommend" in active_modes:
-        rec_sft, rec_dpo, rec_logs = refine_rec_trajectories(rec_tasks, openai_mini_client, sample_num, potential, valid, max_workers=50)
+    if 'recommend' in active_modes and rec_tasks:
+        rec_sft, rec_dpo, rec_logs = refine_rec_trajectories(rec_tasks, openai_mini_client, args.sample_num, args.potential, args.valid, max_workers=4)
         sft_results.extend(rec_sft)
         dpo_results.extend(rec_dpo)
         all_logs.extend(rec_logs)
 
-    if "ask" in active_modes:
-        ask_sft, ask_dpo, ask_logs = refine_ask_trajectories(domain, ask_tasks, openai_mini_client, sample_num, potential, valid, max_workers=50)
+    if 'ask' in active_modes and ask_tasks:
+        ask_sft, ask_dpo, ask_logs = refine_ask_trajectories(args.domain, ask_tasks, openai_mini_client, args.sample_num, args.potential, args.valid, max_workers=4)
         sft_results.extend(ask_sft)
         dpo_results.extend(ask_dpo)
         all_logs.extend(ask_logs)
 
-    if "search" in active_modes:
-        search_sft, search_dpo, search_logs = refine_search_trajectories(
-            search_tasks, openai_mini_client, index, metadata, emb_model, sample_num, potential, valid, max_workers=50
-        )
+    if 'search' in active_modes and search_tasks:
+        try:
+            import faiss
+            from sentence_transformers import SentenceTransformer
+        except ModuleNotFoundError as exc:
+            raise RuntimeError('search mode requires faiss and sentence_transformers in the active environment') from exc
+        index_path = Path(args.index_root) / args.domain / 'faiss_index.bin'
+        metadata_path = Path(args.index_root) / args.domain / 'metadata.json'
+        emb_model = SentenceTransformer(args.model_path)
+        index = faiss.read_index(str(index_path))
+        metadata = load_json(metadata_path)
+        search_sft, search_dpo, search_logs = refine_search_trajectories(search_tasks, openai_mini_client, index, metadata, emb_model, args.sample_num, args.potential, args.valid, max_workers=4)
         sft_results.extend(search_sft)
         dpo_results.extend(search_dpo)
         all_logs.extend(search_logs)
@@ -165,15 +149,26 @@ def main():
     random.shuffle(sft_results)
     random.shuffle(dpo_results)
 
-    with open(os.path.join(output_dir, f'{domain}_sto_sft_v1_sample{sample_num}.json'), 'w', encoding='utf-8') as f:
-        json.dump(sft_results, f, ensure_ascii=False, indent=4)
+    (output_dir / f'{args.domain}_sto_sft_v1_sample{args.sample_num}.json').write_text(json.dumps(sft_results, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    (output_dir / f'{args.domain}_sto_dpo_v1_sample{args.sample_num}.json').write_text(json.dumps(dpo_results, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    refine_log_path = output_dir / f'{args.domain}_refine_log_sample{args.sample_num}.json'
+    refine_log_path.write_text(json.dumps(all_logs, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    (output_dir / 'run_metadata.json').write_text(json.dumps({
+        'status': 'ok',
+        'domain': args.domain,
+        'modes': sorted(active_modes),
+        'input_root': str(input_root),
+        'output_dir': str(output_dir),
+        'sample_num': args.sample_num,
+        'task_limit': args.task_limit,
+        'log_count': len(all_logs),
+        'sft_count': len(sft_results),
+        'dpo_count': len(dpo_results),
+        'base_url': args.base_url or openai_mini_cfg.get('base_url') or openai_cfg.get('base_url'),
+        'model_name': args.model_name or args.mini_model_name or openai_mini_cfg.get('model_path') or openai_cfg.get('model_path'),
+    }, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    print(json.dumps({'status': 'ok', 'output_dir': str(output_dir), 'refine_log': str(refine_log_path), 'log_count': len(all_logs)}, indent=2))
 
-    with open(os.path.join(output_dir, f'{domain}_sto_dpo_v1_sample{sample_num}.json'), 'w', encoding='utf-8') as f:
-        json.dump(dpo_results, f, ensure_ascii=False, indent=4)
 
-    with open(os.path.join(output_dir, f'{domain}_refine_log_sample{sample_num}.json'), 'w', encoding='utf-8') as f:
-        json.dump(all_logs, f, ensure_ascii=False, indent=2)
-    print(f"📝 Saved trace logs to: {os.path.join(output_dir, f'{domain}_refine_log_sample{sample_num}.json')}")
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

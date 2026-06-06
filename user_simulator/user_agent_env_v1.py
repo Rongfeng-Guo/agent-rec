@@ -80,7 +80,7 @@ class UserSimulator:
             LOGGER.info(f"Policy Prompt:\n{policy_prompt}")  # 记录 prompt
 
             # 调用 LLM
-            response = self.openai_client.get_single_chat_completion(policy_prompt, response_format=self.formats["policy_selector"])
+            response = self.openai_client.get_single_chat_completion(policy_prompt, response_format=self.formats["policy_selector"], required_keys=["reason", "policy"], debug_label="policy_selector")
             LOGGER.info(f"Policy Response:\n{response}")  # 记录模型返回
 
             return response
@@ -99,7 +99,7 @@ class UserSimulator:
                     target=json.dumps(self.item, indent=4)
                 )
                 return prompt
-            
+
             def _build_response_to_clarification_prompt():
                 """
                 Builds a prompt for simulating a user responding to a clarification question.
@@ -112,7 +112,7 @@ class UserSimulator:
                     Linguistic_Traits=json.dumps(self.persona["Linguistics"], indent=4)
                 )
                 return prompt
-            
+
             def _build_feedback_to_recommendation_prompt():
                 prompt = recommendation_feedback_template.format(
                     domain=self.domain,
@@ -123,7 +123,7 @@ class UserSimulator:
                     behaviour=json.dumps(self.persona["Activities"], indent=4)
                 )
                 return prompt
-            
+
             def _build_end_conversation_prompt():
                 prompt = end_conversation_template.format(
                     domain=self.domain,
@@ -133,7 +133,7 @@ class UserSimulator:
                     reason=user_policy["reason"]
                 )
                 return prompt
-            
+
             if user_policy["policy"] == "ask_recommendation":
                 response_prompt = _build_ask_recommendation_prompt()
             elif user_policy["policy"] == "respond_to_clarification":
@@ -145,12 +145,12 @@ class UserSimulator:
             else:
                 print(user_policy)
                 raise ValueError("unexpected user policy")
-                
+
 
             LOGGER.info(f"Response Prompt:\n{response_prompt}")  # 记录 prompt
 
             # 调用 LLM
-            response = self.openai_client.get_single_chat_completion(response_prompt, response_format=self.formats["responser"])
+            response = self.openai_client.get_single_chat_completion(response_prompt, response_format=self.formats["responser"], required_keys=["reason", "response"], debug_label="responser")
             LOGGER.info(f"Response:\n{response}")  # 记录模型返回
 
             return response
@@ -168,7 +168,7 @@ class UserSimulator:
                     last_turn_response=last_turn_response
                 )
                 return prompt
-            
+
             def _build_policy_rater_prompt():
                 prompt = policy_rater_template.format(
                     domain=self.domain,
@@ -178,7 +178,7 @@ class UserSimulator:
                     last_user_response=last_user_response
                 )
                 return prompt
-            
+
             def _build_expression_rater_prompt():
                 prompt = expression_rater_template.format(
                     domain=self.domain,
@@ -191,11 +191,11 @@ class UserSimulator:
             policy_rater_prompt = _build_policy_rater_prompt()
             expression_rater_prompt = _build_expression_rater_prompt()
 
-            recommendation_reward = self.openai_client.get_single_chat_completion(recommendation_rater_prompt, response_format=self.formats["recommender_rater"])
+            recommendation_reward = self.openai_client.get_single_chat_completion(recommendation_rater_prompt, response_format=self.formats["recommender_rater"], required_keys=["reason", "rating"], debug_label="recommender_rater")
             policy_reward = self.openai_client.get_single_chat_completion(
-                policy_rater_prompt, response_format=self.formats["policy_rater"]
+                policy_rater_prompt, response_format=self.formats["policy_rater"], required_keys=["reason", "rating"], debug_label="policy_rater"
             )
-            expression_reward = self.openai_client.get_single_chat_completion(expression_rater_prompt, response_format=self.formats["expression_rater"])
+            expression_reward = self.openai_client.get_single_chat_completion(expression_rater_prompt, response_format=self.formats["expression_rater"], required_keys=["reason", "rating"], debug_label="expression_rater")
 
             return recommendation_reward, policy_reward, expression_reward
         except Exception as e:
@@ -227,7 +227,7 @@ class UserSimulator:
                     dialogue_history=dialogue_history,
                     last_turn_response=last_turn_response
                 )
-                
+
                 recommendation_satisfaction, action_satisfaction, expression_satisfaction = self.generate_user_rater(last_user_response=json.loads(user_response)["response"], dialogue_history=dialogue_history, last_turn_response=last_turn_response)
 
                 LOGGER.info(f"Recommendation Satisfaction: {recommendation_satisfaction}")  # 记录评分
@@ -325,14 +325,14 @@ class UserAgentEnv:
     def get_dialogue_history(self) -> DialogueHistory:
         """获取格式化的对话历史"""
         return self.dialogue_history
-    
+
     def update_dialogue_history(self, dialogue_history):
         self.dialogue_history = dialogue_history
 
     def step(self, crs_response=None) -> dict:
         """
         执行模拟中的一步交互。
-        
+
         Args:
             crs_response (dict): 上一轮助手的回复，包含 "content" 字段。
 
