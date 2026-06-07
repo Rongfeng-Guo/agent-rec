@@ -27,6 +27,12 @@ Refresh the stable latest-run bridge summary after a replay run:
 bash scripts/server184/run_real_rollout_bridge.sh
 ```
 
+Generate a cross-run summary for all timestamped replay outputs:
+
+```bash
+python3 scripts/server184/summarize_real_branch_runs.py
+```
+
 ## Output layout
 
 - `snapshots/` contains `replay_snapshots.jsonl`, `snapshot_audit.json`, and related trace files
@@ -34,6 +40,7 @@ bash scripts/server184/run_real_rollout_bridge.sh
 - `adapter/` contains `cdpo_pairs.jsonl` and the bridge metadata
 - `audit/` contains the replay audit summary and CSVs
 - `outputs/server184_gimo/bridge/latest_real/` stores the latest validated bridge summary (`bridge_metadata.json`, `bridge_report.md`, `latest_run.txt`)
+- `outputs/server184_gimo/real_branch_replay_summary/` stores a cross-run index (`summary.json`, `summary.md`)
 
 ## Guardrails
 
