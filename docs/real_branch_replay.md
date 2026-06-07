@@ -33,6 +33,18 @@ Generate a cross-run summary for all timestamped replay outputs:
 python3 scripts/server184/summarize_real_branch_runs.py
 ```
 
+Generate the top-level server184 evaluation index:
+
+```bash
+bash scripts/server184/run_server184_eval_index.sh
+```
+
+That command aggregates env readiness, latest real bridge status, replay history,
+and closed-loop summaries into:
+
+- `outputs/server184_gimo/index/index.json`
+- `outputs/server184_gimo/index/index.md`
+
 ## Output layout
 
 - `snapshots/` contains `replay_snapshots.jsonl`, `snapshot_audit.json`, and related trace files
@@ -41,6 +53,7 @@ python3 scripts/server184/summarize_real_branch_runs.py
 - `audit/` contains the replay audit summary and CSVs
 - `outputs/server184_gimo/bridge/latest_real/` stores the latest validated bridge summary (`bridge_metadata.json`, `bridge_report.md`, `latest_run.txt`)
 - `outputs/server184_gimo/real_branch_replay_summary/` stores a cross-run index (`summary.json`, `summary.md`)
+- `outputs/server184_gimo/index/` stores the top-level server184 eval index (`index.json`, `index.md`)
 
 ## Guardrails
 

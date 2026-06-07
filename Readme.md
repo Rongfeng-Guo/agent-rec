@@ -227,6 +227,42 @@ proxies intended for diagnostic evaluation.
 More detail lives in [`docs/critique_world.md`](docs/critique_world.md) and
 [`docs/experiment_protocol.md`](docs/experiment_protocol.md).
 
+### 5. Server184 real replay and eval index
+
+The server184 path now has a stable stack of reporting entrypoints for real
+Prompt IRA replay evaluation.
+
+Run the real replay pipeline:
+
+```bash
+bash scripts/server184/run_real_branch_replay_pipeline.sh
+```
+
+Refresh the latest validated bridge summary:
+
+```bash
+bash scripts/server184/run_real_rollout_bridge.sh
+```
+
+Refresh the cross-run replay summary:
+
+```bash
+python3 scripts/server184/summarize_real_branch_runs.py
+```
+
+Refresh the top-level server184 evaluation index:
+
+```bash
+bash scripts/server184/run_server184_eval_index.sh
+```
+
+This writes a single top-level summary to
+`outputs/server184_gimo/index/index.md` and `outputs/server184_gimo/index/index.json`.
+
+See [`docs/real_branch_replay.md`](docs/real_branch_replay.md) and
+[`docs/gimo_real_cdpo_bridge.md`](docs/gimo_real_cdpo_bridge.md) for the
+server184-specific artifact layout and provenance rules.
+
 ## Repository Outputs
 
 The main generated artifacts currently tracked in this repository include:
@@ -236,6 +272,7 @@ The main generated artifacts currently tracked in this repository include:
 - `outputs/closed_loop_oracle`
 - `outputs/closed_loop_deterministic`
 - `outputs/validity_gate`
+- `outputs/server184_gimo/index`
 
 These folders contain JSONL trajectories, summary tables, validation files,
 dataset manifests, train/dev split files, and Markdown audit reports for the
@@ -249,6 +286,7 @@ Available and validated:
 - CDPO bridge export with validation and dataset manifests
 - materialized train/dev split generation
 - deterministic regression tests for CritiqueScope and CritiqueWorld
+- server184 replay, bridge, and top-level eval index summaries
 
 Requires external setup:
 
