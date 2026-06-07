@@ -66,6 +66,8 @@ def test_collect_closed_loop_and_build_report(tmp_path):
         "real_branch_replay": module.summarize_replay(outputs_root),
         "closed_loop_runs": closed_loop,
     }
+    metric_table = module.build_metric_table_artifacts(outputs_root)
+    payload["metric_table"] = metric_table
     decision = module.build_decision_artifacts(payload, outputs_root)
     payload["decision_report"] = decision
     report = module.build_report(payload)
@@ -73,6 +75,14 @@ def test_collect_closed_loop_and_build_report(tmp_path):
     assert "latest_run: `20260606_181246`" in report
     assert "`closed_loop_fullvalid9`" in report
     assert "best_method=`flat`" in report
+    assert "## Metric Table" in report
+    metric_table = module.build_metric_table_artifacts(outputs_root)
+    payload["metric_table"] = metric_table
+    assert metric_table["run_count"] == 2
+    assert metric_table["method_row_count"] == 3
+    assert metric_table["top_run"] == "closed_loop_fullvalid9"
+    assert metric_table["top_run_best_method"] == "flat"
+    assert (outputs_root / "metric_table" / "metric_table.json").exists()
     assert decision["overall_status"] == "READY_FOR_METRIC_REVIEW"
     assert (outputs_root / "decision" / "decision.json").exists()
 
@@ -93,6 +103,8 @@ def test_missing_inputs_degrade_gracefully(tmp_path):
     assert payload["bridge_latest_real"]["exists"] is False
     assert payload["real_branch_replay"]["exists"] is False
     assert payload["closed_loop_runs"] == []
+    metric_table = module.build_metric_table_artifacts(outputs_root)
+    payload["metric_table"] = metric_table
     decision = module.build_decision_artifacts(payload, outputs_root)
     payload["decision_report"] = decision
     report = module.build_report(payload)

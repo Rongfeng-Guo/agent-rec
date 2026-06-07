@@ -130,6 +130,50 @@ def build_decision_artifacts(payload: dict, outputs_root: Path) -> dict:
     }
 
 
+def load_metric_table_module():
+    module_path = Path(__file__).with_name("build_server184_metric_table.py")
+    spec = importlib.util.spec_from_file_location("build_server184_metric_table", module_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load metric table module from {module_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def build_metric_table_artifacts(outputs_root: Path) -> dict:
+    module = load_metric_table_module()
+    run_rows = module.collect_runs(outputs_root)
+    method_rows = module.flatten_method_rows(run_rows)
+    metric_dir = outputs_root / "metric_table"
+    payload = {
+        "outputs_root": str(outputs_root),
+        "run_count": len(run_rows),
+        "method_row_count": len(method_rows),
+        "run_rows": run_rows,
+        "method_rows": method_rows,
+    }
+    metric_dir.mkdir(parents=True, exist_ok=True)
+    (metric_dir / "metric_table.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (metric_dir / "metric_table.md").write_text(module.build_markdown(run_rows, method_rows), encoding="utf-8")
+    module.write_csv(metric_dir / "metric_table.csv", method_rows)
+    ranked_runs = sorted(
+        run_rows,
+        key=lambda row: (
+            -(row.get("best_cumulative_utility") if isinstance(row.get("best_cumulative_utility"), (int, float)) else float("-inf")),
+            row.get("run", ""),
+        ),
+    )
+    top_run = ranked_runs[0] if ranked_runs else None
+    return {
+        "metric_dir": str(metric_dir),
+        "run_count": len(run_rows),
+        "method_row_count": len(method_rows),
+        "top_run": top_run.get("run") if top_run else None,
+        "top_run_best_method": top_run.get("best_method") if top_run else None,
+        "top_run_best_cumulative_utility": top_run.get("best_cumulative_utility") if top_run else None,
+    }
+
+
 def build_report(payload: dict) -> str:
     env = payload["env"]
     bridge = payload["bridge_latest_real"]
@@ -174,6 +218,16 @@ def build_report(payload: dict) -> str:
                 f"- `{row['name']}` rows=`{row['row_count']}` scenarios=`{row['scenario_count']}` "
                 f"best_method=`{row['best_method']}` best_avg_cu=`{row['best_avg_cumulative_utility']}` statuses={row['status_counts']}"
             )
+    metric_table = payload.get("metric_table") or {}
+    lines.extend(["", "## Metric Table"])
+    if not metric_table:
+        lines.append("- none")
+    else:
+        lines.append(f"- run_count: `{metric_table.get('run_count')}`")
+        lines.append(f"- method_row_count: `{metric_table.get('method_row_count')}`")
+        lines.append(f"- top_run: `{metric_table.get('top_run')}`")
+        lines.append(f"- top_run_best_method: `{metric_table.get('top_run_best_method')}`")
+        lines.append(f"- top_run_best_cumulative_utility: `{metric_table.get('top_run_best_cumulative_utility')}`")
     return "\n".join(lines) + "\n"
 
 
@@ -190,6 +244,7 @@ def main() -> None:
         "closed_loop_runs": collect_closed_loop(outputs_root),
     }
     output_dir.mkdir(parents=True, exist_ok=True)
+    payload["metric_table"] = build_metric_table_artifacts(outputs_root)
     (output_dir / "index.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     (output_dir / "index.md").write_text(build_report(payload), encoding="utf-8")
     payload["decision_report"] = build_decision_artifacts(payload, outputs_root)
