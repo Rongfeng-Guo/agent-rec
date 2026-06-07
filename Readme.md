@@ -1,5 +1,7 @@
 # GIMO-MemoryLab
 
+[![CPU Smoke](https://github.com/Rongfeng-Guo/agent-rec/actions/workflows/cpu-smoke.yml/badge.svg)](https://github.com/Rongfeng-Guo/agent-rec/actions/workflows/cpu-smoke.yml)
+
 ![Repository overview](pic/image.png)
 
 GIMO-MemoryLab is a research and engineering repository for multi-turn
@@ -33,6 +35,11 @@ git clone https://github.com/Rongfeng-Guo/agent-rec.git
 cd agent-rec
 pip install -r requirements.txt
 ```
+
+The root `requirements.txt` is intentionally lightweight and targets the
+API-free CPU diagnostics documented below. Full GIMO training, LLaMA-Factory
+fine-tuning, and real AILO replay require the external assets and environment
+setup described in the relevant subdirectories.
 
 ## Local Data and API Setup
 
@@ -305,3 +312,8 @@ implementation:
 - [ECPO](https://github.com/XueyangFeng/ECPO) for related evaluation ideas
 - [LLaMA-Factory](https://github.com/hiyouga/LLaMA-Factory) for the training
   framework used by the original stack
+
+## Citation
+
+If this repository helps your memory-aware recommendation or closed-loop
+evaluation work, cite the project metadata in `CITATION.cff`.

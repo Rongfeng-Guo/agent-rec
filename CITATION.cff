@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "If this repository helps your memory-aware recommendation or closed-loop evaluation work, please cite it as below."
+title: "GIMO-MemoryLab"
+authors:
+  - family-names: "Guo"
+    given-names: "Rongfeng"
+repository-code: "https://github.com/Rongfeng-Guo/agent-rec"
+date-released: 2026-06-07
+keywords:
+  - recommender systems
+  - memory-aware recommendation
+  - critique modeling
+  - closed-loop evaluation
+  - preference feedback
