@@ -391,6 +391,40 @@ def test_cdpo_dataset_manifest_rejects_invalid_pairs(tmp_path):
         raise AssertionError("invalid CDPO pairs should not build a manifest")
 
 
+def test_cdpo_dataset_manifest_summarizes_real_branch_replay_rows(tmp_path):
+    row = {
+        "id": "real:s1:ignore",
+        "scenario": "recommend",
+        "seed": 42,
+        "method": "real_branch_replay",
+        "parser_mode": "real_user_sim_replay",
+        "conversations": [{"from": "human", "value": "need a recommendation"}],
+        "chosen": {"branch": "follow", "policy": "Recommend[A]", "trajectory": "turn=0 assistant=Recommend[A]"},
+        "rejected": {"branch": "ignore", "policy": "Ignore[A]", "trajectory": "turn=0 assistant=Ignore[A]"},
+        "score_delta": 0.8,
+        "provenance": "REAL_USER_SIM_REPLAY",
+        "metadata": {
+            "format": "llamafactory_dpo_bridge",
+            "source": "RealBranchReplay",
+            "proxy": "controlled real user simulator replay proxy",
+            "provenance": "REAL_USER_SIM_REPLAY",
+        },
+    }
+    path = tmp_path / "real_cdpo_pairs.jsonl"
+    path.write_text(json.dumps(row) + "\n", encoding="utf-8")
+
+    manifest = build_manifest(path, None, dev_fraction=0.5)
+    snippet = build_llamafactory_snippet(manifest, path)
+
+    assert manifest["source"] == "RealBranchReplay"
+    assert manifest["proxy"] == "controlled real user simulator replay proxy"
+    assert manifest["by_source"] == {"RealBranchReplay": 1}
+    assert manifest["by_proxy"] == {"controlled real user simulator replay proxy": 1}
+    assert manifest["by_provenance"] == {"REAL_USER_SIM_REPLAY": 1}
+    assert manifest["schema"]["real_replay_requires_provenance"] is True
+    assert manifest["dataset_name"] in snippet
+
+
 def test_closed_loop_report_audits_valid_output_dir():
     output_dir = __import__("pathlib").Path("outputs/closed_loop_oracle")
     audit = audit_output_dir(output_dir)

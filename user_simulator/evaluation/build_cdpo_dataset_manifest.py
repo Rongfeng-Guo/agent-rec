@@ -29,6 +29,49 @@ def read_jsonl(path: Path) -> List[dict]:
     return rows
 
 
+def metadata_value(row: dict, key: str, default: str = "UNKNOWN") -> str:
+    metadata = row.get("metadata", {})
+    if isinstance(metadata, dict):
+        value = metadata.get(key)
+        if value not in (None, ""):
+            return str(value)
+    value = row.get(key)
+    if value not in (None, ""):
+        return str(value)
+    return default
+
+
+def infer_source(row: dict) -> str:
+    value = metadata_value(row, "source")
+    if value != "UNKNOWN":
+        return value
+    parser_mode = str(row.get("parser_mode", ""))
+    method = str(row.get("method", ""))
+    if parser_mode == "real_user_sim_replay" or method == "real_branch_replay":
+        return "RealBranchReplay"
+    return "CritiqueWorld"
+
+
+def infer_proxy(row: dict) -> str:
+    value = metadata_value(row, "proxy")
+    if value != "UNKNOWN":
+        return value
+    if infer_source(row) == "RealBranchReplay":
+        return "controlled real user simulator replay proxy"
+    return "controlled counterfactual rollout proxy"
+
+
+def infer_provenance(row: dict) -> str:
+    return metadata_value(row, "provenance")
+
+
+def first_non_unknown(counter: Counter[str], fallback: str) -> str:
+    for key in sorted(counter):
+        if key != "UNKNOWN":
+            return key
+    return fallback
+
+
 def file_sha256(path: Path) -> str:
     import hashlib
 
@@ -105,11 +148,11 @@ def build_manifest(input_path: Path, validation_path: Path | None, dev_fraction:
     by_method = Counter(row.get("method", "UNKNOWN") for row in rows)
     by_scenario = Counter(row.get("scenario", "UNKNOWN") for row in rows)
     by_rejected = Counter(row.get("rejected", {}).get("branch", "UNKNOWN") for row in rows)
-    by_source = Counter(row.get("metadata", {}).get("source", "UNKNOWN") for row in rows)
-    by_proxy = Counter(row.get("metadata", {}).get("proxy", "UNKNOWN") for row in rows)
-    by_provenance = Counter(row.get("metadata", {}).get("provenance", "UNKNOWN") for row in rows)
-    source = next((source for source in by_source if source != "UNKNOWN"), "CritiqueWorld")
-    proxy = next((proxy for proxy in by_proxy if proxy != "UNKNOWN"), "controlled counterfactual rollout proxy")
+    by_source = Counter(infer_source(row) for row in rows)
+    by_proxy = Counter(infer_proxy(row) for row in rows)
+    by_provenance = Counter(infer_provenance(row) for row in rows)
+    source = first_non_unknown(by_source, "CritiqueWorld")
+    proxy = first_non_unknown(by_proxy, "controlled counterfactual rollout proxy")
     splits = split_ids(rows, dev_fraction)
 
     return {
@@ -163,6 +206,12 @@ def build_manifest(input_path: Path, validation_path: Path | None, dev_fraction:
             "chosen_branch": "follow",
             "rejected_branches": ["ignore", "over_apply"],
             "score_delta": "strictly_positive",
+            "accepted_sources": ["CritiqueWorld", "RealBranchReplay"],
+            "accepted_proxies": [
+                "controlled counterfactual rollout proxy",
+                "controlled real user simulator replay proxy",
+            ],
+            "real_replay_requires_provenance": True,
         },
         "limitations": [
             "controlled synthetic latent-state benchmark",

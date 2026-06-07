@@ -189,6 +189,56 @@ def parse_fusion_specs(values: Sequence[str]) -> List[Dict[str, Any]]:
     return specs
 
 
+def normalize_fusion_specs(values: Sequence[Any] | None) -> List[Dict[str, Any]]:
+    if not values:
+        return []
+    if all(isinstance(value, str) for value in values):
+        return parse_fusion_specs([str(value) for value in values])
+    specs: List[Dict[str, Any]] = []
+    for value in values:
+        if not isinstance(value, Mapping):
+            raise ValueError(f"Fusion spec must be a string or mapping, got {value!r}.")
+        name = str(value.get("name", "")).strip()
+        raw_members = value.get("members", [])
+        members = []
+        for member in raw_members:
+            if isinstance(member, str):
+                if ":" not in member:
+                    raise ValueError(f"Expected QUERY_SOURCE:MODE in fusion member {member!r}.")
+                query_source, mode = member.split(":", 1)
+            else:
+                query_source, mode = member
+            members.append(f"{str(query_source).strip()}:{str(mode).strip()}")
+        specs.extend(parse_fusion_specs([f"{name}=" + "+".join(members)]))
+    return specs
+
+
+def normalize_query_policy(value: Any) -> Dict[str, str]:
+    allowed_sources = {"learned", "pooled", "residual", "mean", "prefix1_head", "domain_adaptive", "fusion"}
+    if isinstance(value, Mapping):
+        query_source = str(value.get("query_source", "")).strip()
+        mode = str(value.get("mode", "")).strip()
+    elif isinstance(value, str):
+        if ":" not in value:
+            raise ValueError(f"Expected QUERY_SOURCE:MODE query policy, got {value!r}.")
+        query_source, mode = (part.strip() for part in value.split(":", 1))
+    else:
+        raise ValueError(f"Query policy must be a mapping or QUERY_SOURCE:MODE string, got {value!r}.")
+    if query_source not in allowed_sources:
+        raise ValueError(f"Unknown query policy source {query_source!r}.")
+    if not mode:
+        raise ValueError(f"Query policy mode cannot be empty for {value!r}.")
+    return {"query_source": query_source, "mode": mode}
+
+
+def normalize_query_policy_mapping(value: Any) -> Dict[str, Dict[str, str]]:
+    if not value:
+        return {}
+    if not isinstance(value, Mapping):
+        raise ValueError("domain_query_policies must be a mapping.")
+    return {str(domain): normalize_query_policy(policy) for domain, policy in value.items()}
+
+
 def add_fusion_query_sources(query_sources: Sequence[str], fusion_specs: Sequence[Mapping[str, Any]]) -> List[str]:
     rows = list(query_sources)
     for spec in fusion_specs:
@@ -310,8 +360,12 @@ def load_domain_query_source_config(path: str | Path | None) -> Dict[str, Any]:
         "path": str(config_path),
         "domain_query_sources": normalized_mapping,
         "default_domain_query_source": default_query_source,
+        "domain_query_policies": normalize_query_policy_mapping(payload.get("domain_query_policies", {})),
+        "default_query_policy": normalize_query_policy(payload["default_query_policy"]) if payload.get("default_query_policy") else None,
+        "fusion_specs": normalize_fusion_specs(payload.get("fusion_specs", [])),
         "metadata": payload.get("metadata", {}),
         "metrics": payload.get("metrics", {}),
+        "policy_metrics": payload.get("policy_metrics", {}),
     }
 
 
@@ -782,9 +836,14 @@ def main() -> None:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     device = args.device
-    fusion_specs = parse_fusion_specs(args.fusion_spec)
-    query_sources = add_fusion_query_sources(selected_query_sources(args.query_source), fusion_specs)
     domain_query_source_config = load_domain_query_source_config(args.domain_query_source_config)
+    fusion_specs = parse_fusion_specs(args.fusion_spec) + list(domain_query_source_config.get("fusion_specs", []))
+    query_sources = add_fusion_query_sources(selected_query_sources(args.query_source), fusion_specs)
+    domain_query_policies = dict(domain_query_source_config.get("domain_query_policies", {}))
+    default_query_policy = domain_query_source_config.get("default_query_policy")
+    for policy in list(domain_query_policies.values()) + ([default_query_policy] if default_query_policy else []):
+        if policy and policy["query_source"] != "fusion" and policy["query_source"] not in query_sources:
+            query_sources.append(policy["query_source"])
     domain_query_sources = dict(domain_query_source_config.get("domain_query_sources", {}))
     domain_query_sources.update(parse_domain_query_sources(args.domain_query_source))
     default_domain_query_source = str(
@@ -990,19 +1049,36 @@ def main() -> None:
                                 sample_retrieval_rows[(query_source, retrieval_row["mode"])] = retrieval_row
 
                     for fusion_spec in fusion_specs:
-                        retrieval_rows.append(
-                            build_fusion_retrieval_row(
-                                fusion_spec=fusion_spec,
-                                sample_retrieval_rows=sample_retrieval_rows,
-                                sample_id=sample_id,
-                                target_item_id=target_item_id,
-                                true_route=true_route,
-                                topks=args.topk,
-                                fusion_method=args.fusion_method,
-                                fusion_rrf_k=args.fusion_rrf_k,
-                                per_route_topk=args.per_route_topk,
-                            )
+                        fusion_row = build_fusion_retrieval_row(
+                            fusion_spec=fusion_spec,
+                            sample_retrieval_rows=sample_retrieval_rows,
+                            sample_id=sample_id,
+                            target_item_id=target_item_id,
+                            true_route=true_route,
+                            topks=args.topk,
+                            fusion_method=args.fusion_method,
+                            fusion_rrf_k=args.fusion_rrf_k,
+                            per_route_topk=args.per_route_topk,
                         )
+                        retrieval_rows.append(fusion_row)
+                        sample_retrieval_rows[("fusion", fusion_row["mode"])] = fusion_row
+
+                    selected_policy = domain_query_policies.get(domain, default_query_policy)
+                    if selected_policy:
+                        selected_row = sample_retrieval_rows.get((selected_policy["query_source"], selected_policy["mode"]))
+                        if selected_row is None:
+                            available = sorted(f"{source}:{mode}" for source, mode in sample_retrieval_rows)
+                            raise ValueError(
+                                f"Selected query policy {selected_policy['query_source']}:{selected_policy['mode']} "
+                                f"was not produced for sample {sample_id}. Available members: {available}"
+                            )
+                        policy_row = dict(selected_row)
+                        policy_row["query_source"] = "selected_policy"
+                        policy_row["effective_query_source"] = selected_policy["query_source"]
+                        policy_row["mode"] = "validation_selected"
+                        policy_row["selected_policy_query_source"] = selected_policy["query_source"]
+                        policy_row["selected_policy_mode"] = selected_policy["mode"]
+                        retrieval_rows.append(policy_row)
 
     summary_rows = grouped_summary(retrieval_rows, ["query_source", "subset", "mode"], args.topk, train_item_set)
     summary_by_domain_rows = grouped_summary(retrieval_rows, ["query_source", "subset", "domain", "mode"], args.topk, train_item_set)
@@ -1015,6 +1091,8 @@ def main() -> None:
     summary_query_sources = list(query_sources)
     if fusion_specs:
         summary_query_sources.append("fusion")
+    if default_query_policy or domain_query_policies:
+        summary_query_sources.append("selected_policy")
     warm_retention_by_source = {
         query_source: find_recall50(summary_rows, query_source, "warm", "predicted_route_p2_top8")
         for query_source in summary_query_sources
@@ -1060,6 +1138,8 @@ def main() -> None:
         "domain_query_source_config": domain_query_source_config,
         "domain_query_sources": domain_query_sources,
         "default_domain_query_source": default_domain_query_source,
+        "domain_query_policies": domain_query_policies,
+        "default_query_policy": default_query_policy,
         "route_score_weight": args.route_score_weight,
         "per_route_topk": args.per_route_topk,
         "prefix1_beam_sizes": args.prefix1_beam_sizes,
@@ -1134,7 +1214,7 @@ def main() -> None:
         "",
         "## Cold Recall@50",
     ]
-    for query_source in query_sources:
+    for query_source in summary_query_sources:
         mode_scores = cold_recall50_by_query_source_and_mode.get(query_source, {})
         for mode in sorted(mode_scores):
             report_lines.append(f"- `{query_source}` `{mode}`: `{mode_scores[mode]:.4f}`")
