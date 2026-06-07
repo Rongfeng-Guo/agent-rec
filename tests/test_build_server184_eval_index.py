@@ -66,11 +66,15 @@ def test_collect_closed_loop_and_build_report(tmp_path):
         "real_branch_replay": module.summarize_replay(outputs_root),
         "closed_loop_runs": closed_loop,
     }
+    decision = module.build_decision_artifacts(payload, outputs_root)
+    payload["decision_report"] = decision
     report = module.build_report(payload)
     assert "# Server184 Eval Index" in report
     assert "latest_run: `20260606_181246`" in report
     assert "`closed_loop_fullvalid9`" in report
     assert "best_method=`flat`" in report
+    assert decision["overall_status"] == "READY_FOR_METRIC_REVIEW"
+    assert (outputs_root / "decision" / "decision.json").exists()
 
 
 def test_missing_inputs_degrade_gracefully(tmp_path):
@@ -89,6 +93,9 @@ def test_missing_inputs_degrade_gracefully(tmp_path):
     assert payload["bridge_latest_real"]["exists"] is False
     assert payload["real_branch_replay"]["exists"] is False
     assert payload["closed_loop_runs"] == []
+    decision = module.build_decision_artifacts(payload, outputs_root)
+    payload["decision_report"] = decision
     report = module.build_report(payload)
     assert "env_report: `missing`" in report
     assert "## Closed Loop Runs" in report
+    assert decision["overall_status"] == "BLOCKED"

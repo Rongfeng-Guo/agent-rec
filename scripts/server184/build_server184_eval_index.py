@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -103,6 +104,32 @@ def collect_closed_loop(outputs_root: Path) -> list[dict]:
     return rows
 
 
+def load_decision_module():
+    module_path = Path(__file__).with_name("build_server184_decision_report.py")
+    spec = importlib.util.spec_from_file_location("build_server184_decision_report", module_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load decision report module from {module_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def build_decision_artifacts(payload: dict, outputs_root: Path) -> dict:
+    module = load_decision_module()
+    decision_payload = dict(payload)
+    decision_payload["index_path"] = str(outputs_root / "index" / "index.json")
+    built = module.build_decision_payload(decision_payload)
+    decision_dir = outputs_root / "decision"
+    decision_dir.mkdir(parents=True, exist_ok=True)
+    (decision_dir / "decision.json").write_text(json.dumps(built, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (decision_dir / "decision.md").write_text(module.build_report(built), encoding="utf-8")
+    return {
+        "decision_dir": str(decision_dir),
+        "overall_status": built.get("overall_status"),
+        "blockers": built.get("blockers") or [],
+    }
+
+
 def build_report(payload: dict) -> str:
     env = payload["env"]
     bridge = payload["bridge_latest_real"]
@@ -165,6 +192,8 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "index.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     (output_dir / "index.md").write_text(build_report(payload), encoding="utf-8")
+    payload["decision_report"] = build_decision_artifacts(payload, outputs_root)
+    (output_dir / "index.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(payload, ensure_ascii=False, indent=2))
 
 
