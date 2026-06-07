@@ -56,7 +56,10 @@ def test_collect_runs_picks_latest_ok_and_flags_failures(tmp_path):
     assert rows[1]["bridge_status"] == "OK"
     assert "audit status='FAIL'" in rows[0]["bridge_issues"]
     report = module.build_report(rows)
+    assert "latest_run: `20260606_181246`" in report
     assert "latest_ok_run: `20260606_181246`" in report
+    assert "`AUDIT_NOT_PASS`: `1`" in report
+    assert "`OK`: `1`" in report
 
 
 def test_collect_runs_flags_split_mismatch(tmp_path):
@@ -74,3 +77,16 @@ def test_collect_runs_flags_split_mismatch(tmp_path):
 
     assert rows[0]["bridge_status"] == "SPLIT_COUNT_MISMATCH"
     assert "train/dev counts do not sum to cdpo_pairs count" in rows[0]["bridge_issues"]
+
+
+def test_collect_runs_collapses_missing_artifacts_into_single_status(tmp_path):
+    module = load_module()
+    run_dir = tmp_path / "outputs" / "server184_gimo" / "real_branch_replay" / "20260606_180421"
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    rows = module.collect_runs(run_dir.parent)
+
+    assert rows[0]["bridge_status"] == "MISSING_REQUIRED_ARTIFACTS"
+    assert rows[0]["bridge_issues"] == ["missing required artifacts"]
+    assert "cdpo_validation.json" in rows[0]["missing_artifacts"]
+    assert "adapter/adapter_metadata.json" in rows[0]["missing_artifacts"]
