@@ -27,7 +27,15 @@ from genrec.training import (
     RouterDataset,
     build_eval_router_samples,
     build_training_examples,
+    default_cold_like_validation_split_name,
+    default_train_split_name,
+    default_validation_split_name,
     load_route_mapping,
+    load_protocol_manifest,
+    mark_confirmation_eval_consumed,
+    protocol_split_examples,
+    validate_confirmation_eval_lock,
+    V3_BLIND_CONFIRMATION,
 )
 
 RouteCandidate = Tuple[Tuple[int, ...], float]
@@ -363,6 +371,7 @@ def load_domain_query_source_config(path: str | Path | None) -> Dict[str, Any]:
         "domain_query_policies": normalize_query_policy_mapping(payload.get("domain_query_policies", {})),
         "default_query_policy": normalize_query_policy(payload["default_query_policy"]) if payload.get("default_query_policy") else None,
         "fusion_specs": normalize_fusion_specs(payload.get("fusion_specs", [])),
+        "extra_prefix1_route_sources": selected_extra_prefix1_route_sources(payload.get("extra_prefix1_route_sources", [])),
         "metadata": payload.get("metadata", {}),
         "metrics": payload.get("metrics", {}),
         "policy_metrics": payload.get("policy_metrics", {}),
@@ -375,6 +384,77 @@ def selected_extra_prefix1_route_sources(route_sources: Sequence[str]) -> List[s
     if "all" in route_sources:
         return ["domain_prior", "history_last", "history_vote", "history_recency"]
     return list(dict.fromkeys(route_sources))
+
+
+def parse_mode_details(mode: str) -> Tuple[str, int, str]:
+    merge_strategy = "score"
+    base_mode = str(mode)
+    for candidate in ("zscore", "round_robin", "quota", "rrf"):
+        suffix = f"_{candidate}"
+        if base_mode.endswith(suffix):
+            merge_strategy = candidate
+            base_mode = base_mode[: -len(suffix)]
+            break
+    beam = 1
+    if "_top" in base_mode:
+        stem, beam_text = base_mode.rsplit("_top", 1)
+        base_mode = stem + f"_top{beam_text}"
+        beam = int(beam_text)
+    return base_mode, beam, merge_strategy
+
+
+def _members_for_query_policy(policy: Mapping[str, str], fusion_specs: Sequence[Mapping[str, Any]]) -> List[Tuple[str, str]]:
+    query_source = str(policy.get("query_source", "")).strip()
+    mode = str(policy.get("mode", "")).strip()
+    if query_source != "fusion":
+        return [(query_source, mode)]
+    target_name = mode[7:] if mode.startswith("fusion_") else mode
+    for spec in fusion_specs:
+        if str(spec.get("name", "")).strip() == target_name:
+            return [(str(source), str(member_mode)) for source, member_mode in spec.get("members", [])]
+    raise ValueError(f"Fusion policy {mode!r} did not match any configured fusion_specs.")
+
+
+def load_fusion_config(path: str | Path) -> Dict[str, Any]:
+    config = load_domain_query_source_config(path)
+    payload = json.loads(Path(path).read_text(encoding='utf-8'))
+    default_query_policy = config.get('default_query_policy')
+    if not default_query_policy:
+        raise ValueError('fusion_config.json must define default_query_policy.')
+    metadata = payload.get('metadata', {}) if isinstance(payload.get('metadata', {}), Mapping) else {}
+    raw_per_route_topk = payload.get('per_route_topk', metadata.get('per_route_topk'))
+    config['config_hash'] = payload.get('config_hash') or metadata.get('config_hash')
+    config['route_score_weight'] = float(payload.get('route_score_weight', metadata.get('route_score_weight', 0.0)))
+    config['per_route_topk'] = int(raw_per_route_topk) if raw_per_route_topk is not None else None
+    config['selected_query_source'] = str(default_query_policy.get('query_source', ''))
+    config['selected_mode'] = str(default_query_policy.get('mode', ''))
+    config['selected_policy_name'] = str(metadata.get('policy_name', config['selected_mode']))
+    config['selected_policy_metadata'] = metadata
+    config['fusion_method'] = str(payload.get('fusion_method', metadata.get('fusion_method', 'rrf')))
+    config['fusion_rrf_k'] = float(payload.get('fusion_rrf_k', 60.0))
+    prefix1_beam_sizes = payload.get('prefix1_beam_sizes') or metadata.get('prefix1_beam_sizes') or []
+    config['prefix1_beam_sizes'] = [int(value) for value in prefix1_beam_sizes]
+
+    required_pairs: List[Tuple[str, str]] = []
+    required_query_sources: List[str] = []
+    required_beams = set(config['prefix1_beam_sizes'])
+    required_merges = set()
+    policies = list(config.get('domain_query_policies', {}).values())
+    policies.append(default_query_policy)
+    for policy in policies:
+        for query_source, mode in _members_for_query_policy(policy, config.get('fusion_specs', [])):
+            required_pairs.append((query_source, mode))
+            if query_source not in required_query_sources and query_source != 'fusion':
+                required_query_sources.append(query_source)
+            base_mode, beam, merge_strategy = parse_mode_details(mode)
+            if base_mode.startswith(('predicted_route_p1', 'domain_prior_p1', 'history_last_p1', 'history_vote_p1', 'history_recency_p1')):
+                required_beams.add(int(beam))
+            required_merges.add(str(merge_strategy))
+    config['required_pairs'] = required_pairs
+    config['required_query_sources'] = required_query_sources
+    config['required_prefix1_beam_sizes'] = sorted(required_beams) if required_beams else [1]
+    config['required_merge_strategies'] = sorted(required_merges) if required_merges else ['score']
+    return config
 
 
 def summarize(rows: Sequence[Mapping[str, Any]], topks: Sequence[int], train_item_set: set[str]) -> Dict[str, Any]:
@@ -794,6 +874,16 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument("--cold-only", type=str2bool, default=True)
     parser.add_argument("--max-history", type=int, default=10)
+    parser.add_argument("--protocol-manifest", default=None)
+    parser.add_argument(
+        "--eval-splits",
+        nargs="*",
+        default=None,
+        help="Protocol manifest splits to evaluate. Defaults to blind_confirmation/cold_like_validation/warm_validation for v3.",
+    )
+    parser.add_argument("--confirmation-eval-lock", default=None)
+    parser.add_argument("--allow-confirmation-rerun", action="store_true")
+    parser.add_argument("--rerun-reason", default=None)
     parser.add_argument("--beam-sizes", nargs="+", type=int, default=[1, 4, 8])
     parser.add_argument("--prefix1-beam-sizes", nargs="+", type=int, default=[1])
     parser.add_argument(
@@ -810,6 +900,7 @@ def main() -> None:
     )
     parser.add_argument("--domain-query-source", nargs="*", default=[])
     parser.add_argument("--domain-query-source-config", default=None)
+    parser.add_argument("--fusion-config", default=None)
     parser.add_argument(
         "--default-domain-query-source",
         default="learned",
@@ -836,11 +927,30 @@ def main() -> None:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     device = args.device
-    domain_query_source_config = load_domain_query_source_config(args.domain_query_source_config)
+    if args.fusion_config and args.domain_query_source_config:
+        raise ValueError("Use either --fusion-config or --domain-query-source-config, not both.")
+    using_fusion_config = bool(args.fusion_config)
+    domain_query_source_config = load_fusion_config(args.fusion_config) if using_fusion_config else load_domain_query_source_config(args.domain_query_source_config)
     fusion_specs = parse_fusion_specs(args.fusion_spec) + list(domain_query_source_config.get("fusion_specs", []))
-    query_sources = add_fusion_query_sources(selected_query_sources(args.query_source), fusion_specs)
     domain_query_policies = dict(domain_query_source_config.get("domain_query_policies", {}))
     default_query_policy = domain_query_source_config.get("default_query_policy")
+    route_score_weight = float(domain_query_source_config.get("route_score_weight", args.route_score_weight)) if using_fusion_config else args.route_score_weight
+    per_route_topk = domain_query_source_config.get("per_route_topk") if using_fusion_config else args.per_route_topk
+    fusion_method = str(domain_query_source_config.get("fusion_method", args.fusion_method)) if using_fusion_config else args.fusion_method
+    fusion_rrf_k = float(domain_query_source_config.get("fusion_rrf_k", args.fusion_rrf_k)) if using_fusion_config else args.fusion_rrf_k
+    selected_policy_name = str(domain_query_source_config.get("selected_policy_name", "")) if using_fusion_config else None
+    selected_policy_mode = str(domain_query_source_config.get("selected_mode", "")) if using_fusion_config else None
+    selected_policy_query_source = str(domain_query_source_config.get("selected_query_source", "")) if using_fusion_config else None
+    if using_fusion_config:
+        query_sources = list(domain_query_source_config.get("required_query_sources", []))
+        if not query_sources:
+            query_sources = add_fusion_query_sources(selected_query_sources(args.query_source), fusion_specs)
+        prefix1_beam_sizes = list(domain_query_source_config.get("required_prefix1_beam_sizes", [])) or list(args.prefix1_beam_sizes)
+        merge_strategies = list(domain_query_source_config.get("required_merge_strategies", [])) or list(args.merge_strategies)
+    else:
+        query_sources = add_fusion_query_sources(selected_query_sources(args.query_source), fusion_specs)
+        prefix1_beam_sizes = list(args.prefix1_beam_sizes)
+        merge_strategies = list(args.merge_strategies)
     for policy in list(domain_query_policies.values()) + ([default_query_policy] if default_query_policy else []):
         if policy and policy["query_source"] != "fusion" and policy["query_source"] not in query_sources:
             query_sources.append(policy["query_source"])
@@ -851,10 +961,14 @@ def main() -> None:
         if domain_query_source_config
         else args.default_domain_query_source
     )
-    extra_prefix1_route_sources = selected_extra_prefix1_route_sources(args.extra_prefix1_route_sources)
+    config_extra_prefix1_route_sources = selected_extra_prefix1_route_sources(
+        domain_query_source_config.get("extra_prefix1_route_sources", []) if domain_query_source_config else []
+    )
+    extra_prefix1_route_sources = selected_extra_prefix1_route_sources(
+        [*config_extra_prefix1_route_sources, *args.extra_prefix1_route_sources]
+    )
     item_embeddings = load_item_embeddings(args.data_dir, args.item_embedding_path)
     route_mapping = load_route_mapping(args.item_sid_path)
-    train_item_set = load_train_item_set(args.data_dir)
     model, route_vocab, meta = load_model(args.checkpoint_dir, device)
     prefix1_query_head = None
     prefix1_query_head_meta = None
@@ -866,43 +980,81 @@ def main() -> None:
             raise ValueError("--prefix1-query-head-checkpoint is required when --query-source includes prefix1_head.")
         prefix1_query_head, prefix1_query_head_meta = load_prefix1_query_head(args.prefix1_query_head_checkpoint, device)
 
-    train_examples = build_training_examples(args.data_dir, item_embeddings, route_mapping, max_history=args.max_history)
+    protocol_manifest = load_protocol_manifest(args.protocol_manifest) if args.protocol_manifest else None
+    if args.confirmation_eval_lock:
+        validate_confirmation_eval_lock(
+            args.confirmation_eval_lock,
+            split_manifest_path=args.protocol_manifest,
+            allow_rerun=args.allow_confirmation_rerun,
+            rerun_reason=args.rerun_reason,
+        )
+
+    all_train_examples = build_training_examples(args.data_dir, item_embeddings, route_mapping, max_history=args.max_history)
+    if protocol_manifest is not None:
+        train_split_name = default_train_split_name(protocol_manifest)
+        train_examples = protocol_split_examples(all_train_examples, protocol_manifest, train_split_name)
+        if args.eval_splits:
+            eval_split_names = args.eval_splits
+        elif V3_BLIND_CONFIRMATION in protocol_manifest.get("splits", {}):
+            eval_split_names = [
+                V3_BLIND_CONFIRMATION,
+                default_cold_like_validation_split_name(protocol_manifest),
+                default_validation_split_name(protocol_manifest),
+            ]
+        else:
+            eval_split_names = [
+                default_cold_like_validation_split_name(protocol_manifest),
+                default_validation_split_name(protocol_manifest),
+            ]
+        eval_examples_by_split = {
+            split_name: protocol_split_examples(all_train_examples, protocol_manifest, split_name)
+            for split_name in eval_split_names
+        }
+        train_item_set = {str(example.target_item_id) for example in train_examples}
+    else:
+        train_split_name = "train"
+        train_examples = all_train_examples
+        cold_examples = build_eval_router_samples(args.data_dir, route_mapping, cold_only=True, item_embeddings=item_embeddings, max_history=args.max_history)
+        warm_examples = build_eval_router_samples(args.data_dir, route_mapping, cold_only=False, item_embeddings=item_embeddings, max_history=args.max_history)
+        warm_examples = [row for row in warm_examples if not row.cold]
+        eval_examples_by_split = {"cold": cold_examples, "warm": warm_examples}
+        train_item_set = load_train_item_set(args.data_dir)
+
     domain_prefix1_counts: Dict[str, Counter] = defaultdict(Counter)
     global_prefix1_counts: Counter = Counter()
     for example in train_examples:
         domain_prefix1_counts[str(example.domain)][int(example.route_prefix1)] += 1
         global_prefix1_counts[int(example.route_prefix1)] += 1
 
-    cold_examples = build_eval_router_samples(args.data_dir, route_mapping, cold_only=True, item_embeddings=item_embeddings, max_history=args.max_history)
-    warm_examples = build_eval_router_samples(args.data_dir, route_mapping, cold_only=False, item_embeddings=item_embeddings, max_history=args.max_history)
-    warm_examples = [row for row in warm_examples if not row.cold]
-
-    cold_dataset = RouterDataset(cold_examples, item_embeddings, route_vocab)
-    warm_dataset = RouterDataset(warm_examples, item_embeddings, route_vocab)
-    cold_loader = DataLoader(cold_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=cold_dataset.collate_fn)
-    warm_loader = DataLoader(warm_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=warm_dataset.collate_fn)
+    eval_loaders = []
+    for split_name, split_examples in eval_examples_by_split.items():
+        split_dataset = RouterDataset(split_examples, item_embeddings, route_vocab)
+        eval_loaders.append(
+            (split_name, DataLoader(split_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=split_dataset.collate_fn))
+        )
 
     full_memory_p1 = build_memory(item_embeddings, route_mapping, prefix_len=1)
     full_memory_p2 = build_memory(item_embeddings, route_mapping, prefix_len=2)
     train_memory = build_memory(item_embeddings, route_mapping, prefix_len=2, train_item_set=train_item_set)
 
-    unique_cold_targets = sorted({row.target_item_id for row in cold_examples})
+    unique_eval_targets = sorted({row.target_item_id for rows in eval_examples_by_split.values() for row in rows})
     start = time.perf_counter()
-    train_memory.add_items(
-        item_ids=unique_cold_targets,
-        item_embs=np.stack([item_embeddings[item_id] for item_id in unique_cold_targets], axis=0),
-        routes=[route_mapping[item_id] for item_id in unique_cold_targets],
-        labels=unique_cold_targets,
-    )
-    cold_insertion_ms = (time.perf_counter() - start) * 1000.0
+    if unique_eval_targets:
+        train_memory.add_items(
+            item_ids=unique_eval_targets,
+            item_embs=np.stack([item_embeddings[item_id] for item_id in unique_eval_targets], axis=0),
+            routes=[route_mapping[item_id] for item_id in unique_eval_targets],
+            labels=unique_eval_targets,
+        )
+    eval_insertion_ms = (time.perf_counter() - start) * 1000.0
 
     retrieval_rows = []
     prediction_rows = []
     route_source_rows = []
-    prefix1_beams_for_prediction = sorted(set(args.prefix1_beam_sizes + [1, 2, 4]))
+    prefix1_beams_for_prediction = sorted(set(prefix1_beam_sizes + [1, 2, 4]))
     prefix2_beams_for_prediction = sorted(set(args.beam_sizes + [1, 4, 8]))
 
-    for subset_name, loader in [("cold", cold_loader), ("warm", warm_loader)]:
+    for subset_name, loader in eval_loaders:
         with torch.no_grad():
             for batch in loader:
                 outputs = model(batch["history_embs"].to(device), batch["history_mask"].to(device))
@@ -960,7 +1112,7 @@ def main() -> None:
                     prediction_rows.append(prediction_row)
 
                     search_specs = []
-                    for beam in args.prefix1_beam_sizes:
+                    for beam in prefix1_beam_sizes:
                         mode_label = "predicted_route_p1" if beam == 1 else f"predicted_route_p1_top{beam}"
                         search_specs.append((1, beam, mode_label, full_memory_p1, prefix1_candidates_by_beam))
 
@@ -975,7 +1127,7 @@ def main() -> None:
                                 candidates = history_prefix1_candidates(batch["history_item_ids"][idx], route_mapping, source_name, beam, prior)
                             heuristic_prefix1_candidates_by_mode[source_name][beam] = [candidates]
                     for source_name, candidates_by_beam in heuristic_prefix1_candidates_by_mode.items():
-                        for beam in args.prefix1_beam_sizes:
+                        for beam in prefix1_beam_sizes:
                             mode_label = f"{source_name}_p1" if beam == 1 else f"{source_name}_p1_top{beam}"
                             search_specs.append((1, beam, mode_label, full_memory_p1, candidates_by_beam))
 
@@ -1009,16 +1161,16 @@ def main() -> None:
                         query_embedding = query_embeddings_by_source[effective_query_source][idx]
                         for prefix_len, beam_size, mode_label, current_memory, candidates_by_beam in search_specs:
                             route_candidates = candidates_by_beam[beam_size][0 if mode_label.startswith(("domain_prior", "history_")) else idx]
-                            for merge_strategy in args.merge_strategies:
+                            for merge_strategy in merge_strategies:
                                 ranked_ids, latency_ms, fallback_used, rerank_diagnostics = rerank_with_routes(
                                     query_embedding=query_embedding,
                                     route_candidates=route_candidates,
                                     prefix_len=prefix_len,
                                     memory=current_memory,
                                     topks=args.topk,
-                                    route_score_weight=args.route_score_weight,
+                                    route_score_weight=route_score_weight,
                                     merge_strategy=merge_strategy,
-                                    per_route_topk=args.per_route_topk,
+                                    per_route_topk=per_route_topk,
                                     target_item_id=target_item_id,
                                 )
                                 match_rank = None
@@ -1056,9 +1208,9 @@ def main() -> None:
                             target_item_id=target_item_id,
                             true_route=true_route,
                             topks=args.topk,
-                            fusion_method=args.fusion_method,
-                            fusion_rrf_k=args.fusion_rrf_k,
-                            per_route_topk=args.per_route_topk,
+                            fusion_method=fusion_method,
+                            fusion_rrf_k=fusion_rrf_k,
+                            per_route_topk=per_route_topk,
                         )
                         retrieval_rows.append(fusion_row)
                         sample_retrieval_rows[("fusion", fusion_row["mode"])] = fusion_row
@@ -1084,8 +1236,10 @@ def main() -> None:
     summary_by_domain_rows = grouped_summary(retrieval_rows, ["query_source", "subset", "domain", "mode"], args.topk, train_item_set)
     route_summary_rows = summarize_route_predictions(prediction_rows)
     route_source_summary_rows = summarize_route_source_predictions(route_source_rows)
+    primary_eval_split = next(iter(eval_examples_by_split))
+    warm_eval_split = default_validation_split_name(protocol_manifest) if protocol_manifest is not None else "warm"
     distribution_rows, imbalance_rows = route_distribution_outputs(
-        {"train": train_examples, "cold": cold_examples, "warm": warm_examples}
+        {train_split_name: train_examples, **eval_examples_by_split}
     )
 
     summary_query_sources = list(query_sources)
@@ -1094,42 +1248,47 @@ def main() -> None:
     if default_query_policy or domain_query_policies:
         summary_query_sources.append("selected_policy")
     warm_retention_by_source = {
-        query_source: find_recall50(summary_rows, query_source, "warm", "predicted_route_p2_top8")
+        query_source: find_recall50(summary_rows, query_source, warm_eval_split, "predicted_route_p2_top8")
         for query_source in summary_query_sources
     }
-    cold_recall50_by_query_source_and_mode = {
+    primary_recall50_by_query_source_and_mode = {
         query_source: {
             row["mode"]: float(row["Recall@50"])
             for row in summary_rows
-            if row["query_source"] == query_source and row["subset"] == "cold"
+            if row["query_source"] == query_source and row["subset"] == primary_eval_split
         }
         for query_source in summary_query_sources
     }
     diagnostics = {
-        "prefix1_route_accuracy": find_route_metric(route_summary_rows, "cold", "ALL", "prefix1_top1_accuracy"),
-        "prefix1_route_top2_accuracy": find_route_metric(route_summary_rows, "cold", "ALL", "prefix1_top2_accuracy"),
-        "prefix1_route_top4_accuracy": find_route_metric(route_summary_rows, "cold", "ALL", "prefix1_top4_accuracy"),
-        "prefix2_route_top1_accuracy": find_route_metric(route_summary_rows, "cold", "ALL", "prefix2_top1_accuracy"),
-        "prefix2_route_top4_accuracy": find_route_metric(route_summary_rows, "cold", "ALL", "prefix2_top4_accuracy"),
-        "prefix2_route_top8_accuracy": find_route_metric(route_summary_rows, "cold", "ALL", "prefix2_top8_accuracy"),
+        "primary_eval_split": primary_eval_split,
+        "warm_eval_split": warm_eval_split,
+        "protocol_manifest": str(Path(args.protocol_manifest).resolve()) if args.protocol_manifest else None,
+        "protocol_config_hash": protocol_manifest.get("config_hash") if protocol_manifest else None,
+        "protocol_train_split": train_split_name,
+        "prefix1_route_accuracy": find_route_metric(route_summary_rows, primary_eval_split, "ALL", "prefix1_top1_accuracy"),
+        "prefix1_route_top2_accuracy": find_route_metric(route_summary_rows, primary_eval_split, "ALL", "prefix1_top2_accuracy"),
+        "prefix1_route_top4_accuracy": find_route_metric(route_summary_rows, primary_eval_split, "ALL", "prefix1_top4_accuracy"),
+        "prefix2_route_top1_accuracy": find_route_metric(route_summary_rows, primary_eval_split, "ALL", "prefix2_top1_accuracy"),
+        "prefix2_route_top4_accuracy": find_route_metric(route_summary_rows, primary_eval_split, "ALL", "prefix2_top4_accuracy"),
+        "prefix2_route_top8_accuracy": find_route_metric(route_summary_rows, primary_eval_split, "ALL", "prefix2_top8_accuracy"),
         "target_prefix1_candidate_recall": {
-            "predicted_route_p1": find_route_metric(route_summary_rows, "cold", "ALL", "prefix1_top1_accuracy"),
-            "predicted_route_p1_top2": find_route_metric(route_summary_rows, "cold", "ALL", "prefix1_top2_accuracy"),
-            "predicted_route_p1_top4": find_route_metric(route_summary_rows, "cold", "ALL", "prefix1_top4_accuracy"),
+            "predicted_route_p1": find_route_metric(route_summary_rows, primary_eval_split, "ALL", "prefix1_top1_accuracy"),
+            "predicted_route_p1_top2": find_route_metric(route_summary_rows, primary_eval_split, "ALL", "prefix1_top2_accuracy"),
+            "predicted_route_p1_top4": find_route_metric(route_summary_rows, primary_eval_split, "ALL", "prefix1_top4_accuracy"),
         },
         "target_route_candidate_recall": {
-            "predicted_route_p2_top1": find_route_metric(route_summary_rows, "cold", "ALL", "prefix2_top1_accuracy"),
-            "predicted_route_p2_top4": find_route_metric(route_summary_rows, "cold", "ALL", "prefix2_top4_accuracy"),
-            "predicted_route_p2_top8": find_route_metric(route_summary_rows, "cold", "ALL", "prefix2_top8_accuracy"),
+            "predicted_route_p2_top1": find_route_metric(route_summary_rows, primary_eval_split, "ALL", "prefix2_top1_accuracy"),
+            "predicted_route_p2_top4": find_route_metric(route_summary_rows, primary_eval_split, "ALL", "prefix2_top4_accuracy"),
+            "predicted_route_p2_top8": find_route_metric(route_summary_rows, primary_eval_split, "ALL", "prefix2_top8_accuracy"),
         },
         "route_prediction_by_subset_domain": route_summary_rows,
         "route_source_prediction_by_subset_domain": route_source_summary_rows,
         "class_imbalance_by_subset_domain": imbalance_rows,
-        "cold_recall50_by_query_source_and_mode": cold_recall50_by_query_source_and_mode,
+        "primary_recall50_by_query_source_and_mode": primary_recall50_by_query_source_and_mode,
         "warm_retention_recall50_by_query_source": warm_retention_by_source,
-        "cold_insertion_time_ms_total": cold_insertion_ms,
-        "cold_insertion_time_ms_per_item": cold_insertion_ms / max(len(unique_cold_targets), 1),
-        "num_unique_cold_targets": len(unique_cold_targets),
+        "eval_insertion_time_ms_total": eval_insertion_ms,
+        "eval_insertion_time_ms_per_item": eval_insertion_ms / max(len(unique_eval_targets), 1),
+        "num_unique_eval_targets": len(unique_eval_targets),
         "checkpoint_best": meta.get("train_result", {}).get("best", {}),
         "prefix1_query_head_checkpoint": args.prefix1_query_head_checkpoint,
         "prefix1_query_head_best": (prefix1_query_head_meta or {}).get("train_result", {}).get("best", {}),
@@ -1140,15 +1299,21 @@ def main() -> None:
         "default_domain_query_source": default_domain_query_source,
         "domain_query_policies": domain_query_policies,
         "default_query_policy": default_query_policy,
-        "route_score_weight": args.route_score_weight,
-        "per_route_topk": args.per_route_topk,
-        "prefix1_beam_sizes": args.prefix1_beam_sizes,
+        "route_score_weight": route_score_weight,
+        "per_route_topk": per_route_topk,
+        "prefix1_beam_sizes": prefix1_beam_sizes,
         "prefix2_beam_sizes": args.beam_sizes,
         "extra_prefix1_route_sources": extra_prefix1_route_sources,
-        "merge_strategies": args.merge_strategies,
+        "merge_strategies": merge_strategies,
         "fusion_specs": fusion_specs,
-        "fusion_method": args.fusion_method,
-        "fusion_rrf_k": args.fusion_rrf_k,
+        "fusion_method": fusion_method,
+        "fusion_rrf_k": fusion_rrf_k,
+        "fusion_config_path": str(Path(args.fusion_config).resolve()) if args.fusion_config else None,
+        "fusion_config_hash": domain_query_source_config.get("config_hash"),
+        "selected_policy_name": selected_policy_name,
+        "selected_policy_mode": selected_policy_mode,
+        "selected_policy_query_source": selected_policy_query_source,
+        "selected_policy_metadata": domain_query_source_config.get("selected_policy_metadata", {}) if using_fusion_config else {},
     }
 
     metric_fieldnames = ["sample_count"] + [f"{metric}@{k}" for metric in ("Recall", "NDCG", "MRR") for k in args.topk] + [
@@ -1210,12 +1375,13 @@ def main() -> None:
         "",
         f"- Prefix-1 route top-1/top-2/top-4 accuracy: `{diagnostics['prefix1_route_accuracy']:.4f}` / `{diagnostics['prefix1_route_top2_accuracy']:.4f}` / `{diagnostics['prefix1_route_top4_accuracy']:.4f}`",
         f"- Prefix-2 route top-1/top-4/top-8 accuracy: `{diagnostics['prefix2_route_top1_accuracy']:.4f}` / `{diagnostics['prefix2_route_top4_accuracy']:.4f}` / `{diagnostics['prefix2_route_top8_accuracy']:.4f}`",
-        f"- Cold insertion ms per item: `{diagnostics['cold_insertion_time_ms_per_item']:.6f}`",
+        f"- Primary eval split: `{primary_eval_split}`",
+        f"- Eval insertion ms per item: `{diagnostics['eval_insertion_time_ms_per_item']:.6f}`",
         "",
-        "## Cold Recall@50",
+        f"## {primary_eval_split} Recall@50",
     ]
     for query_source in summary_query_sources:
-        mode_scores = cold_recall50_by_query_source_and_mode.get(query_source, {})
+        mode_scores = primary_recall50_by_query_source_and_mode.get(query_source, {})
         for mode in sorted(mode_scores):
             report_lines.append(f"- `{query_source}` `{mode}`: `{mode_scores[mode]:.4f}`")
     report_lines.extend(
@@ -1229,6 +1395,13 @@ def main() -> None:
         ]
     )
     (output_dir / "report.md").write_text("\n".join(report_lines) + "\n", encoding="utf-8")
+    if args.confirmation_eval_lock:
+        mark_confirmation_eval_consumed(
+            args.confirmation_eval_lock,
+            output_dir=output_dir,
+            allow_rerun=args.allow_confirmation_rerun,
+            rerun_reason=args.rerun_reason,
+        )
     print(json.dumps({"status": "ok", "output_dir": str(output_dir.resolve()), "diagnostics": diagnostics}, indent=2, ensure_ascii=False))
 
 

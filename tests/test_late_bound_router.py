@@ -5,6 +5,8 @@ import json
 import pytest
 import torch
 
+from genrec.models.late_bound_fusion_router import LateBoundFusionRouter
+from genrec.models.late_bound_fusion_router import LateBoundFusionRouter
 from genrec.models.late_bound_router import LateBoundRouter
 
 
@@ -28,6 +30,19 @@ def test_late_bound_router_joint_log_probs() -> None:
     assert abs(probs - 1.0) < 1e-5
 
 
+def test_late_bound_fusion_router_outputs_candidate_logits() -> None:
+    model = LateBoundFusionRouter(num_features=5, num_sources=3, hidden_dim=8)
+    sample_features = torch.randn(2, 5)
+    source_scores = torch.randn(2, 7, 3)
+    route_scores = torch.randn(2, 7)
+
+    logits, weights = model(sample_features, source_scores, route_scores)
+
+    assert logits.shape == (2, 7)
+    assert weights.shape == (2, 4)
+    assert torch.allclose(weights.sum(dim=-1), torch.ones(2), atol=1e-5)
+
+
 from genrec.training.router_dataset import RouteVocab
 from scripts.oracle_route_memory.eval_predicted_route import (
     add_fusion_query_sources,
@@ -40,6 +55,7 @@ from scripts.oracle_route_memory.eval_predicted_route import (
     parse_fusion_specs,
     resolve_query_source,
 )
+from scripts.oracle_route_memory.select_validation_fusion_policy import make_policy_grid
 
 
 def test_prefix1_candidates_use_prefix1_logits_only() -> None:
@@ -215,3 +231,51 @@ def test_route_prediction_eval_reports_prefix1_topk() -> None:
 
     assert "prefix1_top2_accuracy" in metrics
     assert "prefix1_top4_accuracy" in metrics
+
+
+def test_selector_grid_can_include_domain_adaptive_and_multiple_merge_strategies() -> None:
+    policies = make_policy_grid(
+        route_beams=[4],
+        route_score_weights=[0.0],
+        per_route_topks=[50],
+        merge_strategies=["zscore", "rrf"],
+        fusion_methods=["round_robin"],
+        include_single_sources=True,
+        candidate_query_sources=["learned", "domain_adaptive"],
+    )
+
+    names = {policy.name for policy in policies}
+
+    assert "domain_adaptive_single_p1b4_w0p0_k50_zscore" in names
+    assert "domain_adaptive_single_p1b4_w0p0_k50_rrf" in names
+
+
+def test_selector_grid_can_include_mixed_optional_fusion_groups() -> None:
+    policies = make_policy_grid(
+        route_beams=[4],
+        route_score_weights=[0.0],
+        per_route_topks=[50],
+        merge_strategies=["zscore"],
+        fusion_methods=["round_robin"],
+        include_single_sources=False,
+        candidate_query_sources=["learned", "pooled", "domain_adaptive", "prefix1_head"],
+    )
+
+    names = {policy.name for policy in policies}
+
+    assert "learned_domain_adaptive_round_robin_p1b4_w0p0_k50_zscore" in names
+    assert "pooled_prefix1_head_round_robin_p1b4_w0p0_k50_zscore" in names
+    assert "domain_adaptive_prefix1_head_round_robin_p1b4_w0p0_k50_zscore" in names
+
+
+def test_late_bound_fusion_router_outputs_candidate_logits_and_gate_weights() -> None:
+    model = LateBoundFusionRouter(num_features=5, num_sources=3, hidden_dim=8)
+    sample_features = torch.randn(2, 5)
+    source_scores = torch.randn(2, 7, 3)
+    route_scores = torch.randn(2, 7)
+
+    logits, weights = model(sample_features, source_scores, route_scores)
+
+    assert logits.shape == (2, 7)
+    assert weights.shape == (2, 4)
+    assert torch.allclose(weights.sum(dim=-1), torch.ones(2), atol=1e-5)

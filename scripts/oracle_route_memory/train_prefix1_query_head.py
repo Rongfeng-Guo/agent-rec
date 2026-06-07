@@ -18,11 +18,21 @@ if str(REPO_ROOT) not in sys.path:
 import numpy as np
 import torch
 from torch.nn import functional as F
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 
 from genrec.memory.data_adapter import load_item_embeddings
 from genrec.models import Prefix1QueryHead
-from genrec.training import RouterDataset, build_route_vocab, build_training_examples, load_route_mapping
+from genrec.training import (
+    RouterDataset,
+    build_route_vocab,
+    build_training_examples,
+    default_train_split_name,
+    default_validation_split_name,
+    filter_training_item_embeddings,
+    load_protocol_manifest,
+    load_route_mapping,
+    protocol_split_examples,
+)
 
 
 @dataclass
@@ -145,6 +155,9 @@ def main() -> None:
     parser.add_argument("--temperature", type=float, default=0.07)
     parser.add_argument("--max-history", type=int, default=10)
     parser.add_argument("--val-ratio", type=float, default=0.1)
+    parser.add_argument("--protocol-manifest", default=None)
+    parser.add_argument("--split", default=None, help="Training split to use from --protocol-manifest.")
+    parser.add_argument("--validation-split", default=None, help="Validation split to use from --protocol-manifest.")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--device", default="auto")
     args = parser.parse_args()
@@ -158,17 +171,31 @@ def main() -> None:
     route_mapping = load_route_mapping(args.item_sid_path)
     route_vocab = build_route_vocab(route_mapping)
     examples = build_training_examples(args.data_dir, item_embeddings, route_mapping, max_history=args.max_history)
+    protocol_manifest = load_protocol_manifest(args.protocol_manifest) if args.protocol_manifest else None
+    training_item_embeddings = filter_training_item_embeddings(item_embeddings, protocol_manifest) if protocol_manifest else item_embeddings
     dataset = RouterDataset(examples, item_embeddings, route_vocab)
-    item_ids, item_to_index, item_matrix, prefix1_tensors = build_item_tensors(item_embeddings, route_mapping, device)
+    item_ids, item_to_index, item_matrix, prefix1_tensors = build_item_tensors(training_item_embeddings, route_mapping, device)
 
-    val_size = max(1, int(len(dataset) * args.val_ratio))
-    train_size = max(1, len(dataset) - val_size)
-    if train_size + val_size > len(dataset):
-        val_size = len(dataset) - train_size
-    generator = torch.Generator().manual_seed(args.seed)
-    train_dataset, val_dataset = random_split(dataset, [train_size, val_size], generator=generator)
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, collate_fn=dataset.collate_fn)
-    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=dataset.collate_fn)
+    if protocol_manifest is not None:
+        train_split = args.split or default_train_split_name(protocol_manifest)
+        validation_split = args.validation_split or default_validation_split_name(protocol_manifest)
+        train_examples = protocol_split_examples(examples, protocol_manifest, train_split)
+        val_examples = protocol_split_examples(examples, protocol_manifest, validation_split)
+        train_dataset = RouterDataset(train_examples, item_embeddings, route_vocab)
+        val_dataset = RouterDataset(val_examples, item_embeddings, route_vocab)
+        train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, collate_fn=train_dataset.collate_fn)
+        val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=val_dataset.collate_fn)
+        train_size = len(train_examples)
+        val_size = len(val_examples)
+    else:
+        val_size = max(1, int(len(dataset) * args.val_ratio))
+        train_size = max(1, len(dataset) - val_size)
+        if train_size + val_size > len(dataset):
+            val_size = len(dataset) - train_size
+        generator = torch.Generator().manual_seed(args.seed)
+        train_dataset, val_dataset = torch.utils.data.random_split(dataset, [train_size, val_size], generator=generator)
+        train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, collate_fn=dataset.collate_fn)
+        val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=dataset.collate_fn)
 
     model = Prefix1QueryHead(
         embedding_dim=dataset.embedding_dim,
@@ -246,6 +273,11 @@ def main() -> None:
             "item_sid_path": str(Path(args.item_sid_path).resolve()),
             "max_history": args.max_history,
             "objective": "same-prefix hard-negative item retrieval",
+            "protocol_manifest": str(Path(args.protocol_manifest).resolve()) if args.protocol_manifest else None,
+            "protocol_config_hash": protocol_manifest.get("config_hash") if protocol_manifest else None,
+            "protocol_train_split": train_split if protocol_manifest else None,
+            "protocol_validation_split": validation_split if protocol_manifest else None,
+            "num_training_visible_items": len(training_item_embeddings),
         },
     }
     (output_dir / "checkpoint_meta.json").write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

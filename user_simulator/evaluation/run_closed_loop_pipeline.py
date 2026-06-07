@@ -13,6 +13,8 @@ from typing import Iterable, List
 from user_simulator.evaluation.build_cdpo_dataset_manifest import read_jsonl
 from user_simulator.evaluation.summarize_closed_loop_outputs import audit_output_dir, count_jsonl
 
+FULL_EVAL_MODES = {"none", "flat", "structured", "time_decay", "critiquescope"}
+
 
 def run_command(command: List[str]) -> dict:
     completed = subprocess.run(command, text=True, capture_output=True, check=False)
@@ -47,6 +49,12 @@ def enrich_output_readme(output_dir: Path):
     existing = set(lines)
     lines.extend(line for line in additions if line not in existing)
     readme.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def read_json(path: Path) -> dict | None:
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def command_with_values(prefix: list[str], flag: str, values: Iterable[object]) -> list[str]:
@@ -147,6 +155,88 @@ def build_commands(args: argparse.Namespace, output_dir: Path) -> list[tuple[str
     return commands
 
 
+def has_full_eval_coverage(args: argparse.Namespace) -> bool:
+    scenario_values = {str(value) for value in args.scenarios}
+    mode_values = {str(value) for value in args.modes}
+    return scenario_values == {"all"} and mode_values == FULL_EVAL_MODES
+
+
+def validity_gate_passed(validity_metadata: dict | None) -> bool:
+    if not validity_metadata:
+        return False
+    failed = int(validity_metadata.get("failed_invariants", 0) or 0)
+    critical_failed = int(validity_metadata.get("critical_failed_invariants", 0) or 0)
+    return failed == 0 and critical_failed == 0
+
+
+def classify_run_status(args: argparse.Namespace, audit: dict, validity_metadata: dict | None) -> str:
+    if audit["status"] != "PASS":
+        return audit["status"]
+    if has_full_eval_coverage(args) and validity_gate_passed(validity_metadata):
+        return "PASS"
+    return "SMOKE_TEST_ONLY"
+
+
+def rewrite_json(path: Path, transform) -> None:
+    payload = read_json(path)
+    if payload is None:
+        return
+    updated = transform(payload)
+    path.write_text(json.dumps(updated, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def rewrite_summary_csv(path: Path, run_status: str) -> None:
+    if not path.exists():
+        return
+    lines = path.read_text(encoding="utf-8").splitlines()
+    if not lines:
+        return
+    header = lines[0]
+    headers = header.split(",")
+    if "status" not in headers:
+        return
+    status_index = headers.index("status")
+    rewritten = [header]
+    for line in lines[1:]:
+        if not line.strip():
+            continue
+        fields = line.split(",")
+        if len(fields) <= status_index:
+            rewritten.append(line)
+            continue
+        fields[status_index] = run_status
+        rewritten.append(",".join(fields))
+    path.write_text("\n".join(rewritten) + "\n", encoding="utf-8")
+
+
+def rewrite_readme_status(path: Path, run_status: str) -> None:
+    if not path.exists():
+        return
+    lines = path.read_text(encoding="utf-8").splitlines()
+    rewritten = []
+    replaced = False
+    for line in lines:
+        if line.startswith("- Status: "):
+            rewritten.append(f"- Status: {run_status}")
+            replaced = True
+        else:
+            rewritten.append(line)
+    if not replaced:
+        rewritten.insert(2 if len(rewritten) >= 2 else len(rewritten), f"- Status: {run_status}")
+    path.write_text("\n".join(rewritten) + "\n", encoding="utf-8")
+
+
+def normalize_closed_loop_artifacts(output_dir: Path, run_status: str) -> None:
+    rewrite_json(
+        output_dir / "summary.json",
+        lambda rows: [{**row, "status": run_status} for row in rows] if isinstance(rows, list) else rows,
+    )
+    rewrite_summary_csv(output_dir / "summary.csv", run_status)
+    rewrite_json(output_dir / "run_metadata.json", lambda payload: {**payload, "status": run_status})
+    rewrite_json(output_dir / "cdpo_dataset_manifest.json", lambda payload: {**payload, "status": run_status})
+    rewrite_readme_status(output_dir / "README.md", run_status)
+
+
 def build_summary(output_dir: Path, args: argparse.Namespace, steps: list[dict]) -> dict:
     audit = audit_output_dir(output_dir)
     counts = {
@@ -163,8 +253,10 @@ def build_summary(output_dir: Path, args: argparse.Namespace, steps: list[dict])
     validity_path = output_dir / "validity_gate" / "run_metadata.json"
     if validity_path.exists():
         validity_metadata = json.loads(validity_path.read_text(encoding="utf-8"))
+    run_status = classify_run_status(args, audit, validity_metadata)
     return {
         "status": audit["status"],
+        "run_status": run_status,
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "output_dir": str(output_dir),
         "parser_mode": args.parser_mode,
@@ -207,6 +299,7 @@ def run_pipeline(args: argparse.Namespace) -> dict:
 
     enrich_output_readme(output_dir)
     summary = build_summary(output_dir, args, steps)
+    normalize_closed_loop_artifacts(output_dir, summary["run_status"])
     write_json(output_dir / "pipeline_metadata.json", summary)
     return summary
 
