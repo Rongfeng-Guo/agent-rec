@@ -21,12 +21,19 @@ bash scripts/server184/run_real_branch_replay_pipeline.sh
 
 It writes outputs under `outputs/server184_gimo/real_branch_replay/<timestamp>/` and keeps the synthetic regression path untouched.
 
+Refresh the stable latest-run bridge summary after a replay run:
+
+```bash
+bash scripts/server184/run_real_rollout_bridge.sh
+```
+
 ## Output layout
 
 - `snapshots/` contains `replay_snapshots.jsonl`, `snapshot_audit.json`, and related trace files
 - `replay/` contains `branch_rollouts.jsonl`, `replay_pairs.jsonl`, and replay failures
 - `adapter/` contains `cdpo_pairs.jsonl` and the bridge metadata
 - `audit/` contains the replay audit summary and CSVs
+- `outputs/server184_gimo/bridge/latest_real/` stores the latest validated bridge summary (`bridge_metadata.json`, `bridge_report.md`, `latest_run.txt`)
 
 ## Guardrails
 
