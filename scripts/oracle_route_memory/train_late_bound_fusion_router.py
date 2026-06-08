@@ -35,6 +35,24 @@ from scripts.oracle_route_memory.eval_predicted_route import (
 )
 from genrec.memory.data_adapter import load_item_embeddings
 
+try:
+    from scripts.oracle_route_memory.handoff_io import ensure_empty_output_dir, resolve_output_dir, resolve_repo_path
+except ModuleNotFoundError:  # pragma: no cover - direct script execution fallback
+    from handoff_io import ensure_empty_output_dir, resolve_output_dir, resolve_repo_path
+
+
+NEXT_TARGET = (
+    "Use this H4 late-bound fusion run only as validation evidence, then compare "
+    "its bottleneck rows against the locked H5-D candidate-level source ranker "
+    "before any fresh-confirmation claim."
+)
+
+
+def format_metric(value: Any) -> str:
+    if value is None:
+        return "n/a"
+    return f"{float(value):.4f}"
+
 
 @dataclass
 class FusionConfig:
@@ -153,6 +171,19 @@ def collect_source_candidates(
     }
 
 
+def candidate_union_from_source_outputs(
+    source_outputs: Mapping[str, Mapping[str, Any]],
+    query_sources: Sequence[str],
+) -> List[str]:
+    return sorted(
+        {
+            str(item_id)
+            for source_name in query_sources
+            for item_id in source_outputs[source_name].get("score_map", {}).keys()
+        }
+    )
+
+
 def summarize_rows(rows: Sequence[Mapping[str, Any]], topk: int) -> Dict[str, Any]:
     if not rows:
         return {
@@ -164,6 +195,10 @@ def summarize_rows(rows: Sequence[Mapping[str, Any]], topk: int) -> Dict[str, An
             "CandidatePoolHitRate": 0.0,
             "CandidatePoolLossRate": 0.0,
             "ConditionalRecall@50GivenPoolHit": 0.0,
+            "AvgCandidatePoolMatchRank": None,
+            "AvgPoolHitRankMissMatchRank": None,
+            f"OracleSourceHit@{topk}Rate": 0.0,
+            "AvgOracleSourceMatchRank": None,
         }
     recalls = {10: [], 20: [], 50: []}
     route_hits = []
@@ -171,11 +206,24 @@ def summarize_rows(rows: Sequence[Mapping[str, Any]], topk: int) -> Dict[str, An
     pool_losses = []
     for row in rows:
         rank = row["match_rank"]
+        is_hit_at_topk = rank is not None and rank <= topk
         for k in recalls:
             recalls[k].append(float(rank is not None and rank <= k))
         route_hits.append(float(row["route_hit"]))
         pool_hits.append(float(row["candidate_pool_hit"]))
-        pool_losses.append(float(row["candidate_pool_hit"] and not (rank is not None and rank <= topk)))
+        pool_losses.append(float(row["candidate_pool_hit"] and not is_hit_at_topk))
+    candidate_pool_match_ranks = [
+        float(row["candidate_pool_match_rank"]) for row in rows if row.get("candidate_pool_match_rank") is not None
+    ]
+    pool_hit_rank_miss_ranks = [
+        float(row["candidate_pool_match_rank"])
+        for row in rows
+        if row.get("candidate_pool_match_rank") is not None and row["candidate_pool_hit"] and row["match_rank"] > topk
+    ]
+    oracle_source_hits = [float(row.get("oracle_source_hit_at_topk", False)) for row in rows]
+    oracle_source_match_ranks = [
+        float(row["oracle_source_match_rank"]) for row in rows if row.get("oracle_source_match_rank") is not None
+    ]
     recall50 = float(np.mean(recalls[50]))
     pool_hit_rate = float(np.mean(pool_hits))
     return {
@@ -187,6 +235,10 @@ def summarize_rows(rows: Sequence[Mapping[str, Any]], topk: int) -> Dict[str, An
         "CandidatePoolHitRate": pool_hit_rate,
         "CandidatePoolLossRate": float(np.mean(pool_losses)),
         "ConditionalRecall@50GivenPoolHit": float(recall50 / pool_hit_rate) if pool_hit_rate > 0 else 0.0,
+        "AvgCandidatePoolMatchRank": float(np.mean(candidate_pool_match_ranks)) if candidate_pool_match_ranks else None,
+        "AvgPoolHitRankMissMatchRank": float(np.mean(pool_hit_rank_miss_ranks)) if pool_hit_rank_miss_ranks else None,
+        f"OracleSourceHit@{topk}Rate": float(np.mean(oracle_source_hits)),
+        "AvgOracleSourceMatchRank": float(np.mean(oracle_source_match_ranks)) if oracle_source_match_ranks else None,
     }
 
 
@@ -231,6 +283,7 @@ def build_gate_examples(
 
             for idx, target_item_id in enumerate(batch["target_item_id"]):
                 route_candidates = prefix1_candidates[idx]
+                target_item_id_str = str(target_item_id)
                 true_prefix1 = (int(route_mapping[str(target_item_id)][0]),)
                 route_hit = any(tuple(route) == true_prefix1 for route, _ in route_candidates)
                 source_outputs = {}
@@ -252,21 +305,18 @@ def build_gate_examples(
                     for item_id, route_score in source_outputs[source_name]["route_score_map"].items():
                         route_score_union[item_id] = max(route_score_union.get(item_id, -1e9), float(route_score))
 
-                candidate_union = sorted(
-                    {
-                        item_id
-                        for source_name in config.query_sources
-                        for item_id in source_outputs[source_name]["ranked_ids"][: config.topk]
-                    }
-                )
+                candidate_union = candidate_union_from_source_outputs(source_outputs, config.query_sources)
                 if not candidate_union:
                     continue
 
                 source_score_matrix = np.zeros((len(candidate_union), len(config.query_sources)), dtype=np.float32)
+                source_presence_matrix = np.zeros((len(candidate_union), len(config.query_sources)), dtype=np.bool_)
                 route_score_vector = np.zeros((len(candidate_union),), dtype=np.float32)
                 for item_idx, item_id in enumerate(candidate_union):
                     route_score_vector[item_idx] = float(route_score_union.get(item_id, 0.0))
                     for source_idx, source_name in enumerate(config.query_sources):
+                        if item_id in source_outputs[source_name]["score_map"]:
+                            source_presence_matrix[item_idx, source_idx] = True
                         source_score_matrix[item_idx, source_idx] = float(
                             source_outputs[source_name]["score_map"].get(item_id, 0.0)
                         )
@@ -281,18 +331,27 @@ def build_gate_examples(
                     ],
                     dtype=np.float32,
                 )
+                member_candidate_pool_hit_count = sum(
+                    int(target_item_id_str in source_outputs[source_name]["score_map"]) for source_name in config.query_sources
+                )
                 rows.append(
                     {
                         "sample_id": str(batch["sample_id"][idx]),
                         "domain": str(batch["domain"][idx]),
                         "target_item_id": str(target_item_id),
                         "candidate_ids": candidate_union,
+                        "query_sources": list(config.query_sources),
                         "source_scores": source_score_matrix,
+                        "source_presence": source_presence_matrix,
                         "route_scores": route_score_vector,
                         "sample_features": sample_features,
-                        "target_index": candidate_union.index(str(target_item_id)) if str(target_item_id) in candidate_union else -1,
+                        "target_index": candidate_union.index(target_item_id_str) if target_item_id_str in candidate_union else -1,
                         "route_hit": bool(route_hit),
-                        "candidate_pool_hit": str(target_item_id) in candidate_union,
+                        "candidate_pool_hit": target_item_id_str in candidate_union,
+                        "candidate_pool_size": len(candidate_union),
+                        "num_route_candidates": len(route_candidates),
+                        "member_route_hit_count": len(config.query_sources) if route_hit else 0,
+                        "member_candidate_pool_hit_count": member_candidate_pool_hit_count,
                     }
                 )
     return rows
@@ -304,11 +363,13 @@ def evaluate_gate(model: LateBoundFusionRouter, rows: Sequence[Mapping[str, Any]
     with torch.no_grad():
         for row in rows:
             sample_features = torch.from_numpy(np.asarray(row["sample_features"], dtype=np.float32)).unsqueeze(0).to(device)
-            source_scores = torch.from_numpy(np.asarray(row["source_scores"], dtype=np.float32)).unsqueeze(0).to(device)
+            source_score_array = np.asarray(row["source_scores"], dtype=np.float32)
+            source_scores = torch.from_numpy(source_score_array).unsqueeze(0).to(device)
             route_scores = torch.from_numpy(np.asarray(row["route_scores"], dtype=np.float32)).unsqueeze(0).to(device)
             logits, weights = model(sample_features, source_scores, route_scores)
+            candidate_ids = list(row["candidate_ids"])
             ranked = torch.argsort(logits[0], descending=True).cpu().tolist()
-            ranked_ids = [row["candidate_ids"][candidate_idx] for candidate_idx in ranked[:topk]]
+            ranked_ids = [candidate_ids[candidate_idx] for candidate_idx in ranked[:topk]]
             target_index = int(row["target_index"])
             match_rank = None
             if target_index >= 0:
@@ -316,6 +377,30 @@ def evaluate_gate(model: LateBoundFusionRouter, rows: Sequence[Mapping[str, Any]
                     if int(candidate_idx) == target_index:
                         match_rank = rank
                         break
+            candidate_pool_hit = bool(row["candidate_pool_hit"])
+            weights_list = [float(value) for value in weights[0].cpu().tolist()]
+            num_sources = int(source_score_array.shape[-1])
+            query_sources = [str(value) for value in row.get("query_sources", [f"source_{idx}" for idx in range(num_sources)])]
+            source_presence = np.asarray(row.get("source_presence", np.ones_like(source_score_array, dtype=np.bool_)), dtype=np.bool_)
+            source_target_ranks: Dict[str, int | None] = {}
+            source_candidate_hits: Dict[str, bool] = {}
+            for source_idx, source_name in enumerate(query_sources):
+                target_present = target_index >= 0 and bool(source_presence[target_index, source_idx])
+                source_candidate_hits[source_name] = target_present
+                if not target_present:
+                    source_target_ranks[source_name] = None
+                    continue
+                present_indices = np.flatnonzero(source_presence[:, source_idx])
+                ranked_source_indices = sorted(
+                    (int(candidate_idx) for candidate_idx in present_indices),
+                    key=lambda candidate_idx: float(source_score_array[candidate_idx, source_idx]),
+                    reverse=True,
+                )
+                source_target_ranks[source_name] = next(
+                    rank for rank, candidate_idx in enumerate(ranked_source_indices, start=1) if candidate_idx == target_index
+                )
+            observed_source_ranks = [rank for rank in source_target_ranks.values() if rank is not None]
+            oracle_source_match_rank = min(observed_source_ranks) if observed_source_ranks else None
             outputs.append(
                 {
                     "sample_id": row["sample_id"],
@@ -323,9 +408,21 @@ def evaluate_gate(model: LateBoundFusionRouter, rows: Sequence[Mapping[str, Any]
                     "target_item_id": row["target_item_id"],
                     "match_rank": match_rank,
                     "route_hit": bool(row["route_hit"]),
-                    "candidate_pool_hit": bool(row["candidate_pool_hit"]),
+                    "candidate_pool_hit": candidate_pool_hit,
+                    "candidate_pool_size": int(row.get("candidate_pool_size", len(candidate_ids))),
+                    "candidate_pool_match_rank": match_rank if candidate_pool_hit else None,
+                    "candidate_pool_rank_cutoff": len(candidate_ids),
+                    "num_route_candidates": int(row.get("num_route_candidates", 0)),
+                    "member_route_hit_count": int(row.get("member_route_hit_count", 0)),
+                    "member_candidate_pool_hit_count": int(row.get("member_candidate_pool_hit_count", 0)),
+                    "source_target_ranks": source_target_ranks,
+                    "source_candidate_hits": source_candidate_hits,
+                    "oracle_source_match_rank": oracle_source_match_rank,
+                    "oracle_source_hit_at_topk": bool(oracle_source_match_rank is not None and oracle_source_match_rank <= topk),
                     "ranked_ids": ranked_ids,
-                    "gate_weights": [float(value) for value in weights[0].cpu().tolist()],
+                    "source_weights": weights_list[:num_sources],
+                    "route_weight": weights_list[num_sources] if len(weights_list) > num_sources else None,
+                    "gate_weights": weights_list,
                 }
             )
     return summarize_rows(outputs, topk=topk), outputs
@@ -397,6 +494,7 @@ def main() -> None:
     parser.add_argument("--router-checkpoint-dir", required=True)
     parser.add_argument("--protocol-manifest", required=True)
     parser.add_argument("--output-dir", required=True)
+    parser.add_argument("--repo-root", default=None)
     parser.add_argument("--prefix1-query-head-checkpoint", default=None)
     parser.add_argument("--query-sources", nargs="+", default=["learned", "residual", "pooled"])
     parser.add_argument("--prefix1-beam", type=int, default=4)
@@ -416,8 +514,14 @@ def main() -> None:
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     device = choose_device(args.device)
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir = resolve_output_dir(args.output_dir, args.repo_root)
+    data_dir = resolve_repo_path(args.data_dir, args.repo_root)
+    item_embedding_path = resolve_repo_path(args.item_embedding_path, args.repo_root)
+    item_sid_path = resolve_repo_path(args.item_sid_path, args.repo_root)
+    router_checkpoint_dir = resolve_repo_path(args.router_checkpoint_dir, args.repo_root)
+    protocol_manifest_path = resolve_repo_path(args.protocol_manifest, args.repo_root)
+    prefix1_query_head_checkpoint = resolve_repo_path(args.prefix1_query_head_checkpoint, args.repo_root)
+    ensure_empty_output_dir(output_dir)
 
     config = FusionConfig(
         query_sources=tuple(str(value) for value in args.query_sources),
@@ -433,18 +537,18 @@ def main() -> None:
         seed=int(args.seed),
     )
 
-    protocol_manifest = load_protocol_manifest(args.protocol_manifest)
-    item_embeddings = load_item_embeddings(args.data_dir, args.item_embedding_path)
-    route_mapping = load_route_mapping(args.item_sid_path)
-    router_model, route_vocab, router_meta = load_model(args.router_checkpoint_dir, device)
+    protocol_manifest = load_protocol_manifest(protocol_manifest_path)
+    item_embeddings = load_item_embeddings(data_dir, item_embedding_path)
+    route_mapping = load_route_mapping(item_sid_path)
+    router_model, route_vocab, router_meta = load_model(router_checkpoint_dir, device)
     prefix1_query_head = None
     prefix1_query_head_meta = None
     if "prefix1_head" in config.query_sources:
-        if not args.prefix1_query_head_checkpoint:
+        if prefix1_query_head_checkpoint is None:
             raise ValueError("--prefix1-query-head-checkpoint is required when prefix1_head is used.")
-        prefix1_query_head, prefix1_query_head_meta = load_prefix1_query_head(args.prefix1_query_head_checkpoint, device)
+        prefix1_query_head, prefix1_query_head_meta = load_prefix1_query_head(prefix1_query_head_checkpoint, device)
 
-    all_examples = build_training_examples(args.data_dir, item_embeddings, route_mapping, max_history=args.max_history)
+    all_examples = build_training_examples(data_dir, item_embeddings, route_mapping, max_history=args.max_history)
     train_examples = protocol_split_examples(all_examples, protocol_manifest, "train")
     cold_like_examples = protocol_split_examples(all_examples, protocol_manifest, "cold_like_val")
     heldout_items = set(str(item_id) for item_id in protocol_manifest.get("heldout_item_ids", []))
@@ -499,10 +603,10 @@ def main() -> None:
             "query_agreement",
         ],
         "query_sources": list(config.query_sources),
-        "protocol_manifest": str(Path(args.protocol_manifest).resolve()),
+        "protocol_manifest": str(protocol_manifest_path.resolve()),
         "protocol_config_hash": protocol_manifest.get("config_hash"),
-        "router_checkpoint_dir": str(Path(args.router_checkpoint_dir).resolve()),
-        "prefix1_query_head_checkpoint": str(Path(args.prefix1_query_head_checkpoint).resolve()) if args.prefix1_query_head_checkpoint else None,
+        "router_checkpoint_dir": str(router_checkpoint_dir.resolve()),
+        "prefix1_query_head_checkpoint": str(prefix1_query_head_checkpoint.resolve()) if prefix1_query_head_checkpoint else None,
         "fusion_config": asdict(config),
         "train_result": result,
         "metadata": {
@@ -525,6 +629,7 @@ def main() -> None:
             "topk": config.topk,
             "candidate_scoring": "source_zscore + learned_gate(sample_features) + route_weight",
         },
+        "next_target": NEXT_TARGET,
     }
     (output_dir / "checkpoint_meta.json").write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     (output_dir / "train_outputs.json").write_text(json.dumps(result["train_outputs"], indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -540,14 +645,22 @@ def main() -> None:
         "",
         "## Train",
         "",
-        f"- Recall@50: `{result['train_metric']['Recall@50']:.4f}`",
-        f"- CandidatePoolHitRate: `{result['train_metric']['CandidatePoolHitRate']:.4f}`",
+        f"- Recall@50: `{format_metric(result['train_metric']['Recall@50'])}`",
+        f"- CandidatePoolHitRate: `{format_metric(result['train_metric']['CandidatePoolHitRate'])}`",
         "",
         "## Cold-Like Validation",
         "",
-        f"- Recall@50: `{result['val_metric']['Recall@50']:.4f}`",
-        f"- CandidatePoolHitRate: `{result['val_metric']['CandidatePoolHitRate']:.4f}`",
-        f"- ConditionalRecall@50GivenPoolHit: `{result['val_metric']['ConditionalRecall@50GivenPoolHit']:.4f}`",
+        f"- Recall@50: `{format_metric(result['val_metric']['Recall@50'])}`",
+        f"- CandidatePoolHitRate: `{format_metric(result['val_metric']['CandidatePoolHitRate'])}`",
+        f"- ConditionalRecall@50GivenPoolHit: `{format_metric(result['val_metric']['ConditionalRecall@50GivenPoolHit'])}`",
+        f"- AvgCandidatePoolMatchRank: `{format_metric(result['val_metric']['AvgCandidatePoolMatchRank'])}`",
+        f"- AvgPoolHitRankMissMatchRank: `{format_metric(result['val_metric']['AvgPoolHitRankMissMatchRank'])}`",
+        f"- OracleSourceHit@{config.topk}: `{format_metric(result['val_metric'][f'OracleSourceHit@{config.topk}Rate'])}`",
+        f"- AvgOracleSourceMatchRank: `{format_metric(result['val_metric']['AvgOracleSourceMatchRank'])}`",
+        "",
+        "## Next Target",
+        "",
+        NEXT_TARGET,
     ]
     (output_dir / "report.md").write_text("\n".join(report_lines) + "\n", encoding="utf-8")
     print(
@@ -557,6 +670,7 @@ def main() -> None:
                 "output_dir": str(output_dir.resolve()),
                 "train_recall@50": result["train_metric"]["Recall@50"],
                 "cold_like_recall@50": result["val_metric"]["Recall@50"],
+                "next_target": NEXT_TARGET,
             },
             indent=2,
             ensure_ascii=False,

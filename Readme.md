@@ -10,10 +10,39 @@ The codebase provides executable pipelines for structured memory experiments,
 scope-aware critique processing, controlled preference-pair construction, and
 artifact-oriented evaluation outputs.
 
+## Current Server184 Status
+
+The active server-side line is now H5-D oracle route memory / route-query
+binding, not the older DriftAware-GIMO branch snapshot. Start with:
+
+- [`RESEARCH_STATUS.md`](RESEARCH_STATUS.md): current server state, locked
+  validation metric, gate paths, and next target.
+- [`README_oracle_route_memory.md`](README_oracle_route_memory.md): H5-D status
+  plus background for the oracle route memory pivot.
+- [`experiments/h5-candidate-level-source-reranker/README.md`](experiments/h5-candidate-level-source-reranker/README.md):
+  locked H5-D policy, handoff artifacts, claim boundary, and reproduction
+  entry points.
+- [`to_human/h5_github_update_candidate_20260608.md`](to_human/h5_github_update_candidate_20260608.md):
+  staging notes for reviewing source/docs/tests before any GitHub update.
+
+Current locked validation-selected policy:
+`h5_pairwise_domain_routed_book_h100_game_h300`, with validation Recall@50
+`0.07352941176470588` (`10/136`). This is validation-only and must not be
+reported as a fresh blind-confirmation result until a clearly fresh/unconsumed
+split is registered, scored with the locked models, and reported separately.
+
+Next target: keep the locked manifest and v16 handoff gates unchanged while
+waiting for a fresh split; then register the split, export candidate-level
+features, score with locked h100/h300 `model.pkl` files, apply the locked
+domain route, and render a fresh-confirmation report.
+
 ## What This Repository Contains
 
 The current codebase includes the following components:
 
+- `Oracle Route Memory / H5-D`: route-conditioned candidate memory, candidate-
+  level source features, pairwise reranking, locked validation manifest, and
+  fresh-confirmation handoff gates.
 - `DriftAware-GIMO`: structured memory for positive, negative, hard, and soft
   preference tracking under interest drift.
 - `CritiqueScope-GIMO`: fast/slow critique memory that distinguishes temporary

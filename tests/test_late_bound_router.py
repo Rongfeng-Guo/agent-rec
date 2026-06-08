@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 
+import numpy as np
 import pytest
 import torch
 
 from genrec.models.late_bound_fusion_router import LateBoundFusionRouter
 from genrec.models.late_bound_fusion_router import LateBoundFusionRouter
 from genrec.models.late_bound_router import LateBoundRouter
+from genrec.memory.catalog_memory import CatalogMemory
 
 
 def test_late_bound_router_shapes() -> None:
@@ -54,6 +56,7 @@ from scripts.oracle_route_memory.eval_predicted_route import (
     parse_domain_query_sources,
     parse_fusion_specs,
     resolve_query_source,
+    rerank_with_routes,
 )
 from scripts.oracle_route_memory.select_validation_fusion_policy import make_policy_grid
 
@@ -154,6 +157,8 @@ def test_build_fusion_retrieval_row_combines_members() -> None:
             "ranked_ids": ["a", "target", "c"],
             "latency_ms": 1.25,
             "fallback_used": False,
+            "route_hit": False,
+            "candidate_pool_hit": True,
             "num_route_candidates": 2,
         },
         ("residual", "predicted_route_p1_top4_zscore"): {
@@ -162,6 +167,8 @@ def test_build_fusion_retrieval_row_combines_members() -> None:
             "ranked_ids": ["target", "b", "a"],
             "latency_ms": 2.5,
             "fallback_used": True,
+            "route_hit": True,
+            "candidate_pool_hit": True,
             "num_route_candidates": 3,
         },
     }
@@ -182,6 +189,9 @@ def test_build_fusion_retrieval_row_combines_members() -> None:
     assert row["mode"] == "fusion_lr_p1t4"
     assert row["ranked_ids"][:4] == ["a", "target", "b", "c"]
     assert row["match_rank"] == 2
+    assert row["route_hit"] is True
+    assert row["member_route_hit_count"] == 1
+    assert row["member_candidate_pool_hit_count"] == 2
     assert row["candidate_pool_hit"] is True
     assert row["candidate_pool_size"] == 4
     assert row["fallback_used"] is True
@@ -279,3 +289,30 @@ def test_late_bound_fusion_router_outputs_candidate_logits_and_gate_weights() ->
     assert logits.shape == (2, 7)
     assert weights.shape == (2, 4)
     assert torch.allclose(weights.sum(dim=-1), torch.ones(2), atol=1e-5)
+
+
+def test_rerank_with_routes_reports_candidate_pool_match_rank() -> None:
+    memory = CatalogMemory(normalize=True, prefer_faiss=False)
+    memory.add_items(
+        ["a", "b", "target"],
+        np.array([[1.0, 0.0], [0.9, 0.1], [0.8, 0.2]], dtype=np.float32),
+        routes=[(1,), (1,), (1,)],
+    )
+
+    ranked_ids, _, _, diagnostics = rerank_with_routes(
+        query_embedding=np.array([1.0, 0.0], dtype=np.float32),
+        route_candidates=[((1,), 0.0)],
+        prefix_len=1,
+        memory=memory,
+        topks=[2],
+        route_score_weight=0.0,
+        merge_strategy="score",
+        per_route_topk=3,
+        target_item_id="target",
+    )
+
+    assert ranked_ids == ["a", "b"]
+    assert diagnostics["candidate_pool_hit"] is True
+    assert diagnostics["candidate_pool_size"] == 3
+    assert diagnostics["candidate_pool_match_rank"] == 3
+    assert diagnostics["candidate_pool_rank_cutoff"] == 3

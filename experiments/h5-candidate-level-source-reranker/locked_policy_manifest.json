@@ -1,0 +1,120 @@
+{
+  "name": "h5_pairwise_domain_routed_book_h100_game_h300",
+  "status": "validation_selected_candidate",
+  "created_at": "2026-06-08",
+  "claim_boundary": "Validation-only. Not a model-performance claim until locked before a fresh blind confirmation.",
+  "protocol": {
+    "manifest": "outputs/oracle_route_memory/official_protocol_v3_blind_confirmation/split_manifest.json",
+    "config_hash": "23333f630a251cf0b0d4fa779db276692727496a78903328ecbf78f72336f700",
+    "selection_split": "cold_like_val",
+    "consumed_blind_policy": "Do not read or reinterpret consumed protocol-v3 blind-confirmation labels for this H5 policy."
+  },
+  "candidate_export": {
+    "output_dir": "outputs/oracle_route_memory/h5_candidate_level_source_features_k500_20260608",
+    "train_candidate_rows": "outputs/oracle_route_memory/h5_candidate_level_source_features_k500_20260608/train_candidate_rows.jsonl",
+    "cold_like_candidate_rows": "outputs/oracle_route_memory/h5_candidate_level_source_features_k500_20260608/cold_like_candidate_rows.jsonl",
+    "query_sources": [
+      "learned",
+      "residual",
+      "mean",
+      "prefix1_head"
+    ],
+    "prefix1_beam": 4,
+    "per_route_topk": 500
+  },
+  "component_rankers": {
+    "h100": {
+      "output_dir": "outputs/oracle_route_memory/h5_candidate_level_source_ranker_pairwise_linear_k500_n500_h100_e20_20260608",
+      "cold_like_outputs": "outputs/oracle_route_memory/h5_candidate_level_source_ranker_pairwise_linear_k500_n500_h100_e20_20260608/cold_like_outputs.json",
+      "objective": "pairwise",
+      "model": "PairwiseLinearRanker(softplus(pos-neg))",
+      "negatives_per_positive": 500,
+      "hard_negatives_per_positive": 100,
+      "pairwise_epochs": 20,
+      "pairwise_batch_size": 4096,
+      "pairwise_learning_rate": 0.005,
+      "pairwise_weight_decay": 0.0001,
+      "seed": 42,
+      "validation_recall_at_50": 0.04411764705882353
+    },
+    "h300": {
+      "output_dir": "outputs/oracle_route_memory/h5_candidate_level_source_ranker_pairwise_linear_k500_n500_h300_e30_20260608",
+      "cold_like_outputs": "outputs/oracle_route_memory/h5_candidate_level_source_ranker_pairwise_linear_k500_n500_h300_e30_20260608/cold_like_outputs.json",
+      "objective": "pairwise",
+      "model": "PairwiseLinearRanker(softplus(pos-neg))",
+      "negatives_per_positive": 500,
+      "hard_negatives_per_positive": 300,
+      "pairwise_epochs": 30,
+      "pairwise_batch_size": 4096,
+      "pairwise_learning_rate": 0.005,
+      "pairwise_weight_decay": 0.0001,
+      "seed": 42,
+      "validation_recall_at_50": 0.051470588235294115
+    }
+  },
+  "domain_routing": {
+    "Book": "h100",
+    "Game": "h300",
+    "default_source": "h300",
+    "combiner": "scripts/oracle_route_memory/combine_ranker_outputs_by_domain.py"
+  },
+  "selected_outputs": {
+    "output_dir": "outputs/oracle_route_memory/h5_pairwise_domain_routed_book_h100_game_h300_20260608",
+    "cold_like_outputs": "outputs/oracle_route_memory/h5_pairwise_domain_routed_book_h100_game_h300_20260608/cold_like_outputs.json",
+    "summary": "outputs/oracle_route_memory/h5_pairwise_domain_routed_book_h100_game_h300_20260608/summary.json",
+    "analyzer": "outputs/oracle_route_memory/route_query_binding_error_analysis_h5_pairwise_domain_routed_book_h100_game_h300_20260608"
+  },
+  "validation_metrics": {
+    "sample_count": 136,
+    "hits_at_50": 10,
+    "Recall@50": 0.07352941176470588,
+    "CandidatePoolHitRate": 0.9191176470588235,
+    "ConditionalRecall@50GivenPoolHit": 0.08,
+    "AvgCandidatePoolMatchRank": 1172.016,
+    "AvgPoolHitRankMissMatchRank": 1271.7217391304348,
+    "OracleSourceHit@50Rate": 0.09558823529411764,
+    "AvgOracleSourceMatchRank": 524.192,
+    "domain_metrics": {
+      "Book": {
+        "sample_count": 65,
+        "hits_at_50": 3,
+        "Recall@50": 0.046153846153846156
+      },
+      "Game": {
+        "sample_count": 71,
+        "hits_at_50": 7,
+        "Recall@50": 0.09859154929577464
+      }
+    }
+  },
+  "robustness_checks": {
+    "seed_sensitivity": {
+      "h100_e20_seed42_recall_at_50": 0.04411764705882353,
+      "h100_e20_seed7_recall_at_50": 0.04411764705882353,
+      "h300_e30_seed42_recall_at_50": 0.051470588235294115,
+      "h300_e30_seed7_recall_at_50": 0.051470588235294115
+    },
+    "nearby_hard_negative_counts": {
+      "h100_e20": {
+        "Book": "3/65",
+        "Game": "3/71",
+        "Recall@50": 0.04411764705882353
+      },
+      "h200_e30": {
+        "Book": "3/65",
+        "Game": "6/71",
+        "Recall@50": 0.0661764705882353
+      },
+      "h300_e30": {
+        "Book": "0/65",
+        "Game": "7/71",
+        "Recall@50": 0.051470588235294115
+      }
+    },
+    "comparison_table": "experiments/h5-candidate-level-source-reranker/validation_comparison.md"
+  },
+  "next_checks": [
+    "Repeat robustness on a larger validation protocol or fresh split if available.",
+    "Keep the H5 domain-routed manifest unchanged before any fresh blind confirmation."
+  ]
+}

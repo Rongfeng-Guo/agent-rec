@@ -46,8 +46,18 @@ from eval_predicted_route import (
     route_to_text,
 )
 
+try:
+    from scripts.oracle_route_memory.handoff_io import ensure_empty_output_dir, resolve_output_dir, resolve_repo_path
+except ModuleNotFoundError:  # pragma: no cover - direct script execution fallback
+    from handoff_io import ensure_empty_output_dir, resolve_output_dir, resolve_repo_path
+
 TOPKS = (10, 20, 50)
 MERGE_STRATEGIES = ("score", "zscore", "quota", "round_robin", "rrf")
+NEXT_TARGET = (
+    "Treat the selected explicit policy as validation-only evidence; keep its "
+    "policy hash and ranking outputs separate from any fresh-confirmation "
+    "claim until a fresh split is registered and scored."
+)
 
 
 BUILTIN_POLICY_PRESETS: Dict[str, Dict[str, Any]] = {
@@ -347,6 +357,32 @@ def policy_metadata(policy: Mapping[str, Any]) -> Dict[str, Any]:
     }
 
 
+RetrievalKey = Tuple[str, str, float, int | None]
+
+
+def retrieval_key_for_policy_member(policy: Mapping[str, Any], query_source: str, mode: str) -> RetrievalKey:
+    per_route_topk = policy.get("per_route_topk")
+    if per_route_topk is not None:
+        per_route_topk = int(per_route_topk)
+    return (
+        str(query_source),
+        str(mode),
+        float(policy.get("route_score_weight", 0.0)),
+        per_route_topk,
+    )
+
+
+def required_retrieval_keys(policies: Sequence[Mapping[str, Any]]) -> set[RetrievalKey]:
+    keys: set[RetrievalKey] = set()
+    for policy in policies:
+        members = [(policy["query_source"], policy["mode"])]
+        if policy["query_source"] == "fusion":
+            members = list(policy["fusion_specs"][0]["members"])
+        for query_source, mode in members:
+            keys.add(retrieval_key_for_policy_member(policy, str(query_source), str(mode)))
+    return keys
+
+
 def pick_best_policy(summary_rows: Sequence[Mapping[str, Any]], validation_split: str) -> Mapping[str, Any]:
     candidates = [row for row in summary_rows if row.get("split") == validation_split]
     if not candidates:
@@ -377,23 +413,18 @@ def evaluate_policies(
     default_domain_query_source: str,
     extra_prefix1_route_sources: Sequence[str],
 ) -> List[Dict[str, Any]]:
-    required_pairs = set()
+    required_keys = required_retrieval_keys(policies)
     required_predicted_beams = {1}
     required_heuristic_beams: Dict[str, set[int]] = defaultdict(set)
-    for policy in policies:
-        members = [(policy["query_source"], policy["mode"])]
-        if policy["query_source"] == "fusion":
-            members = list(policy["fusion_specs"][0]["members"])
-        for query_source, mode in members:
-            required_pairs.add((str(query_source), str(mode)))
-            base_mode, beam, _ = parse_mode_details(str(mode))
-            if base_mode.startswith("predicted_route_p1"):
-                required_predicted_beams.add(beam)
-            elif base_mode.startswith(("domain_prior_p1", "history_last_p1", "history_vote_p1", "history_recency_p1")):
-                source_name = base_mode.split("_p1", 1)[0]
-                required_heuristic_beams[source_name].add(beam)
-            else:
-                raise ValueError(f"Unsupported explicit policy mode: {mode}")
+    for query_source, mode, _, _ in required_keys:
+        base_mode, beam, _ = parse_mode_details(str(mode))
+        if base_mode.startswith("predicted_route_p1"):
+            required_predicted_beams.add(beam)
+        elif base_mode.startswith(("domain_prior_p1", "history_last_p1", "history_vote_p1", "history_recency_p1")):
+            source_name = base_mode.split("_p1", 1)[0]
+            required_heuristic_beams[source_name].add(beam)
+        else:
+            raise ValueError(f"Unsupported explicit policy mode: {mode}")
 
     memory = build_memory(item_embeddings, route_mapping, prefix_len=1)
     rows: List[Dict[str, Any]] = []
@@ -449,8 +480,8 @@ def evaluate_policies(
                             prior_cache[beam] = candidates
                         heuristic_candidates_by_source[source_name] = prior_cache
 
-                    sample_rows: Dict[Tuple[str, str], Dict[str, Any]] = {}
-                    for query_source, mode in sorted(required_pairs):
+                    sample_rows: Dict[RetrievalKey, Dict[str, Any]] = {}
+                    for query_source, mode, route_score_weight, per_route_topk in sorted(required_keys):
                         effective_source = resolve_query_source(query_source, domain, domain_query_sources, default_domain_query_source) if query_source == "domain_adaptive" else query_source
                         if effective_source not in query_embeddings:
                             raise ValueError(f"Query source {query_source!r} resolved to unavailable source {effective_source!r}.")
@@ -466,13 +497,13 @@ def evaluate_policies(
                             prefix_len=1,
                             memory=memory,
                             topks=TOPKS,
-                            route_score_weight=0.0,
+                            route_score_weight=route_score_weight,
                             merge_strategy=merge_strategy,
-                            per_route_topk=None,
+                            per_route_topk=per_route_topk,
                             target_item_id=target_item_id,
                         )
                         match_rank = next((rank for rank, item_id in enumerate(ranked_ids, start=1) if item_id == target_item_id), None)
-                        sample_rows[(query_source, mode)] = {
+                        sample_rows[(query_source, mode, route_score_weight, per_route_topk)] = {
                             "query_source": query_source,
                             "effective_query_source": effective_source,
                             "split": split_name,
@@ -492,9 +523,13 @@ def evaluate_policies(
 
                     for policy in policies:
                         if policy["query_source"] == "fusion":
+                            fusion_sample_rows = {
+                                (query_source, mode): sample_rows[retrieval_key_for_policy_member(policy, str(query_source), str(mode))]
+                                for query_source, mode in policy["fusion_specs"][0]["members"]
+                            }
                             result = build_fusion_retrieval_row(
                                 fusion_spec=policy["fusion_specs"][0],
-                                sample_retrieval_rows=sample_rows,
+                                sample_retrieval_rows=fusion_sample_rows,
                                 sample_id=sample_id,
                                 target_item_id=target_item_id,
                                 true_route=true_route,
@@ -508,7 +543,7 @@ def evaluate_policies(
                             result["split"] = split_name
                             result.setdefault("subset", split_name)
                         else:
-                            result = dict(sample_rows[(policy["query_source"], policy["mode"])])
+                            result = dict(sample_rows[retrieval_key_for_policy_member(policy, policy["query_source"], policy["mode"])])
                         result.update(policy_metadata(policy))
                         rows.append(result)
     return rows
@@ -523,6 +558,7 @@ def main() -> None:
     parser.add_argument("--explicit-policy-config", default=None)
     parser.add_argument("--preset", choices=sorted(BUILTIN_POLICY_PRESETS), default=None)
     parser.add_argument("--output-dir", required=True)
+    parser.add_argument("--repo-root", default=None)
     parser.add_argument("--device", default="auto")
     parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument("--max-history", type=int, default=10)
@@ -537,25 +573,32 @@ def main() -> None:
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     device = choose_device(args.device)
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir = resolve_output_dir(args.output_dir, args.repo_root)
+    data_dir = resolve_repo_path(args.data_dir, args.repo_root)
+    item_embedding_path = resolve_repo_path(args.item_embedding_path, args.repo_root)
+    item_sid_path = resolve_repo_path(args.item_sid_path, args.repo_root)
+    checkpoint_dir = resolve_repo_path(args.checkpoint_dir, args.repo_root)
+    explicit_policy_config_path = resolve_repo_path(args.explicit_policy_config, args.repo_root)
+    protocol_manifest_path = resolve_repo_path(args.protocol_manifest, args.repo_root)
+    prefix1_query_head_checkpoint = resolve_repo_path(args.prefix1_query_head_checkpoint, args.repo_root)
+    ensure_empty_output_dir(output_dir)
 
-    explicit_config = resolve_explicit_policy_config(args.explicit_policy_config, args.preset)
-    item_embeddings = load_item_embeddings(args.data_dir, args.item_embedding_path)
-    route_mapping = load_route_mapping(args.item_sid_path)
-    model, route_vocab, checkpoint_meta = load_model(args.checkpoint_dir, device)
+    explicit_config = resolve_explicit_policy_config(explicit_policy_config_path, args.preset)
+    item_embeddings = load_item_embeddings(data_dir, item_embedding_path)
+    route_mapping = load_route_mapping(item_sid_path)
+    model, route_vocab, checkpoint_meta = load_model(checkpoint_dir, device)
     prefix1_query_head = None
     prefix1_query_head_meta = None
     needed_sources = set(explicit_config["domain_query_sources"].values())
     for policy in explicit_config["policies"]:
         needed_sources.update(policy.get("query_sources", []))
     if "prefix1_head" in needed_sources:
-        if not args.prefix1_query_head_checkpoint:
+        if prefix1_query_head_checkpoint is None:
             raise ValueError("--prefix1-query-head-checkpoint is required when explicit policies use prefix1_head.")
-        prefix1_query_head, prefix1_query_head_meta = load_prefix1_query_head(args.prefix1_query_head_checkpoint, device)
+        prefix1_query_head, prefix1_query_head_meta = load_prefix1_query_head(prefix1_query_head_checkpoint, device)
 
-    examples = build_training_examples(args.data_dir, item_embeddings, route_mapping, max_history=args.max_history)
-    protocol_manifest = load_protocol_manifest(args.protocol_manifest)
+    examples = build_training_examples(data_dir, item_embeddings, route_mapping, max_history=args.max_history)
+    protocol_manifest = load_protocol_manifest(protocol_manifest_path)
     selection_split = args.selection_split or default_cold_like_validation_split_name(protocol_manifest)
     warm_split = args.warm_split or default_validation_split_name(protocol_manifest)
     splits = {
@@ -621,12 +664,12 @@ def main() -> None:
             "warm_split": warm_split,
             "args": vars(args),
             "checkpoint_best": checkpoint_meta.get("train_result", {}).get("best", {}),
-            "prefix1_query_head_checkpoint": str(Path(args.prefix1_query_head_checkpoint).resolve()) if args.prefix1_query_head_checkpoint else None,
+            "prefix1_query_head_checkpoint": str(prefix1_query_head_checkpoint.resolve()) if prefix1_query_head_checkpoint else None,
             "prefix1_query_head_best": (prefix1_query_head_meta or {}).get("train_result", {}).get("best", {}),
             "domain_query_sources": explicit_config["domain_query_sources"],
             "default_domain_query_source": explicit_config["default_domain_query_source"],
             "extra_prefix1_route_sources": explicit_config["extra_prefix1_route_sources"],
-            "protocol_manifest": str(Path(args.protocol_manifest).resolve()),
+            "protocol_manifest": str(protocol_manifest_path.resolve()),
             "protocol_config_hash": protocol_manifest.get("config_hash"),
             "explicit_policy_config": explicit_config["path"],
             "explicit_policy_config_hash": explicit_config["config_hash"],
@@ -650,6 +693,25 @@ def main() -> None:
     write_csv(output_dir / "selector_rows.csv", enriched_rows)
     write_csv(output_dir / "selector_summary.csv", enriched_summary)
     write_csv(output_dir / "selector_summary_by_domain.csv", enriched_by_domain)
+    selector_manifest = {
+        "status": "ok",
+        "selected_policy": str(best_policy["policy_name"]),
+        "selection_split": selection_split,
+        "warm_split": warm_split,
+        "output_dir": str(output_dir),
+        "artifacts": {
+            "fusion_config": "fusion_config.json",
+            "selector_rows": "selector_rows.json",
+            "selector_summary": "selector_summary.json",
+            "selector_summary_by_domain": "selector_summary_by_domain.json",
+            "report": "report.md",
+        },
+        "next_target": NEXT_TARGET,
+    }
+    (output_dir / "selector_manifest.json").write_text(
+        json.dumps(selector_manifest, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
 
     top = sorted([row for row in enriched_summary if row.get("split") == selection_split], key=lambda row: float(row.get("Recall@50", 0.0)), reverse=True)
     report_lines = [
@@ -673,8 +735,20 @@ def main() -> None:
     ]
     for row in top:
         report_lines.append(f"- `{row['policy_name']}`: R@50 `{float(row['Recall@50']):.4f}`, pool `{float(row['CandidatePoolHitRate']):.4f}`, route `{float(row['RouteHitRate']):.4f}`")
+    report_lines.extend(["", "## Next Target", "", NEXT_TARGET])
     (output_dir / "report.md").write_text("\n".join(report_lines) + "\n", encoding="utf-8")
-    print(json.dumps({"status": "ok", "output_dir": str(output_dir.resolve()), "selected": config["metadata"]}, indent=2, ensure_ascii=False))
+    print(
+        json.dumps(
+            {
+                "status": "ok",
+                "output_dir": str(output_dir.resolve()),
+                "selected": config["metadata"],
+                "next_target": NEXT_TARGET,
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
+    )
 
 
 if __name__ == "__main__":

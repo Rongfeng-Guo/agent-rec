@@ -1,5 +1,46 @@
 # Oracle Route + Memory
 
+## Current H5-D Status
+
+Date: 2026-06-08
+
+The active validation-selected policy is now the H5-D candidate-level source
+reranker:
+
+- policy: `h5_pairwise_domain_routed_book_h100_game_h300`
+- locked validation Recall@50: `0.07352941176470588` (`10/136`)
+- Book: `3/65`
+- Game: `7/71`
+- claim boundary: validation-only, not a fresh blind-confirmation result
+
+Current handoff and reproduction entry points:
+
+- `experiments/h5-candidate-level-source-reranker/README.md`
+- `experiments/h5-candidate-level-source-reranker/repro_commands.md`
+- `experiments/h5-candidate-level-source-reranker/handoff_index.json`
+- `to_human/h5_fresh_confirmation_handoff_summary_20260608.md`
+- `findings.md`
+
+Current v16 gates:
+
+- prep bundle:
+  `outputs/oracle_route_memory/h5_fresh_confirmation_prep_bundle_20260608_v16`
+- bundle audit:
+  `outputs/oracle_route_memory/h5_fresh_confirmation_prep_bundle_20260608_v16_audit`
+- readiness:
+  `outputs/oracle_route_memory/h5_fresh_readiness_20260608_v16`
+- handoff index validation:
+  `outputs/oracle_route_memory/h5_handoff_index_validation_20260608_v16`
+
+Next target: keep the locked H5-D manifest and v16 gates unchanged until a
+clearly fresh/unconsumed split exists. Then register the split, export fresh
+candidate-level features with the locked query sources/beam/depth, score with
+locked h100/h300 `model.pkl` files, apply the locked domain route, and render a
+fresh-confirmation report that separates validation and fresh metrics.
+
+The sections below describe the original route-memory pivot and remain useful
+background for the H5-D line.
+
 ## Idea
 
 This branch tests a pivot away from full SID generation for cold-item recommendation.

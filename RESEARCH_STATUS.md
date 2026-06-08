@@ -1,5 +1,57 @@
 # Research Status
 
+## Current Server184 Status: H5-D Oracle Route Memory
+
+Date: 2026-06-08
+
+The active server-side research state is now the oracle route memory /
+route-query-binding line, not the older DriftAware-GIMO branch snapshot below.
+Detailed state is tracked in:
+
+- `research-state.yaml`
+- `research-log.md`
+- `findings.md`
+- `experiments/h5-candidate-level-source-reranker/README.md`
+- `to_human/h5_fresh_confirmation_handoff_summary_20260608.md`
+- `to_human/h5_github_update_candidate_20260608.md`
+
+Current locked validation-selected H5-D policy:
+
+- policy: `h5_pairwise_domain_routed_book_h100_game_h300`
+- locked validation Recall@50: `0.07352941176470588` (`10/136`)
+- Book: `3/65`
+- Game: `7/71`
+- claim boundary: validation-only, not a fresh blind-confirmation result
+
+Current handoff gates:
+
+- prep bundle:
+  `outputs/oracle_route_memory/h5_fresh_confirmation_prep_bundle_20260608_v16`
+- prep bundle audit:
+  `outputs/oracle_route_memory/h5_fresh_confirmation_prep_bundle_20260608_v16_audit`
+- readiness:
+  `outputs/oracle_route_memory/h5_fresh_readiness_20260608_v16`
+- handoff index validation:
+  `outputs/oracle_route_memory/h5_handoff_index_validation_20260608_v16`
+
+Gate status:
+
+- bundle audit `status=ok`
+- bundle audit `source_drift=[]`
+- readiness `status=ok`
+- readiness `bundle_audit_source_drift_count=0`
+- handoff index validation `status=ok`
+
+Next target: keep the locked H5-D manifest and v16 handoff gates unchanged while
+waiting for a clearly fresh/unconsumed split. When that split exists, register
+its manifest path/SHA-256, export candidate-level features with the locked query
+sources/beam/depth, score with locked h100/h300 `model.pkl` files, apply the
+locked domain route, and render a fresh-confirmation report with validation and
+fresh metrics kept separate.
+
+The sections below are earlier DriftAware-GIMO branch context retained for
+historical reference.
+
 ## Current Branch
 
 `codex/driftaware-structured-memory`

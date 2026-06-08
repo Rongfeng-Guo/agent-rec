@@ -1,0 +1,81 @@
+project: agent-rec route/query binding research
+status: active
+updated_at: "2026-06-08"
+objective: >
+  Improve the oracle route memory / predicted route pipeline toward a
+  publication-quality result by running locked, reproducible experiments and
+  synthesizing the route/query-binding bottleneck.
+authoritative_repo: /home/grf/agent-rec
+constraints:
+  - Do not touch /home/grf/GenRecEdit-main.
+  - Do not delete existing outputs.
+  - Do not auto-commit or push unless explicitly requested.
+  - Preserve protocol-v2 frozen selected rows and metrics.
+  - Treat protocol-v3 consumed blind confirmation as closed; post-confirmation
+    diagnostics are not retroactive claims.
+current_baselines:
+  protocol_v2:
+    bundle: outputs/oracle_route_memory/paper_ready_protocol_v2_native_20260607
+    selected_rows: 399
+    cold_all_recall_at_50: 0.04927536231884058
+  protocol_v3_blind_confirmation:
+    bundle: outputs/oracle_route_memory/paper_ready_protocol_v3_blind_confirmation
+    selected_fusion_blind_all_recall_at_50: 0.084746
+    strongest_no_route_blind_all_recall_at_50: 0.093220
+    oracle_prefix1_blind_all_recall_at_50: 0.127119
+    oracle_prefix2_blind_all_recall_at_50: 0.822034
+active_hypothesis:
+  id: H5
+  slug: candidate-level-source-reranker
+  question: >
+    Can a candidate-level reranker use per-source rank/score, route confidence,
+    source presence, and agreement features to move pool-hit targets from deep
+    candidate ranks into the top-50?
+  prediction: >
+    H4 showed that sample-level source weighting is insufficient: pool entry can
+    reach 0.919118, but Recall@50 remains 0.029412 and oracle best-single-source
+    Hit@50 is only 0.0956. Candidate-level features may still recover targets by
+    combining source evidence instead of selecting one source globally per
+    sample.
+  status: in_progress
+  result: >
+    H5 exporter completed with 1,888,938 train candidate rows and 345,969
+    cold-like candidate rows. Pointwise SGD rankers were negative, but pairwise
+    linear ranking improved: h100/e20 matched H3 at Recall@50 0.044118, h300/e30
+    reached 0.051471, and a validation-only domain-routed policy
+    (Book->h100/e20, Game->h300/e30) reached 0.073529. The H5-D manifest is now
+    locked for validation comparison, and seed/nearby-hard-negative checks were
+    stable enough to keep H5-D as the current selected validation candidate. The
+    locked manifest validator recomputes the selected metrics from output rows.
+    This is validation-only and not a fresh blind-confirmation claim.
+next_actions:
+  - Keep the H5-D locked manifest unchanged and use the current prep bundle at
+    outputs/oracle_route_memory/h5_fresh_confirmation_prep_bundle_20260608_v16
+    as the validation-only handoff package, with audit output at
+    outputs/oracle_route_memory/h5_fresh_confirmation_prep_bundle_20260608_v16_audit.
+  - If source docs or the manifest change, regenerate a new prep bundle in a
+    new output directory; do not overwrite existing bundles.
+  - Rerun the prep-bundle audit before any fresh scoring and require
+    status=ok, no errors, and no source_drift.
+  - Await a clearly fresh/unconsumed confirmation split before any blind-style
+    claim; register its manifest path and SHA-256 with
+    scripts/oracle_route_memory/register_h5_fresh_split.py before scoring,
+    including --require-manifest-field checks for explicit fresh/unconsumed
+    metadata.
+  - Score future fresh candidate rows with locked h100/h300 model.pkl files via
+    scripts/oracle_route_memory/score_candidate_level_source_ranker.py; do not
+    retrain after fresh labels are available.
+  - Keep the loaded-model replay validator at status=ok with mismatch_count=0
+    via scripts/oracle_route_memory/validate_h5_loaded_model_replay.py.
+  - Keep the combined readiness check at status=ok via
+    scripts/oracle_route_memory/check_h5_fresh_readiness.py before any fresh
+    scoring.
+  - Keep the structured H5-D handoff index validator at status=ok via
+    scripts/oracle_route_memory/validate_h5_handoff_index.py after any handoff
+    doc or bundle version change; require prep-bundle artifact coverage, current
+    gate paths, and document mentions to stay synchronized.
+  - After future fresh locked-model scoring and domain routing, render the
+    gated final report with
+    scripts/oracle_route_memory/render_h5_fresh_confirmation_report.py and keep
+    validation/fresh metrics separate.
+  - Do not read or reinterpret consumed blind-confirmation labels for H5.

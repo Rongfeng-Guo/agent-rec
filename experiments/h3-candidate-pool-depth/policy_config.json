@@ -1,0 +1,689 @@
+{
+  "domain_query_sources": {
+    "Book": "mean",
+    "Game": "prefix1_head"
+  },
+  "default_domain_query_source": "learned",
+  "extra_prefix1_route_sources": [
+    "domain_prior"
+  ],
+  "policy_candidates": [
+    {
+      "policy_name": "learned_predicted_route_p1_top4_zscore_k50_w0p0",
+      "query_source": "learned",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 50
+    },
+    {
+      "policy_name": "learned_predicted_route_p1_top4_zscore_k50_w0p5",
+      "query_source": "learned",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 50
+    },
+    {
+      "policy_name": "learned_predicted_route_p1_top4_zscore_k50_w1p0",
+      "query_source": "learned",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 50
+    },
+    {
+      "policy_name": "learned_predicted_route_p1_top4_zscore_k100_w0p0",
+      "query_source": "learned",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 100
+    },
+    {
+      "policy_name": "learned_predicted_route_p1_top4_zscore_k100_w0p5",
+      "query_source": "learned",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 100
+    },
+    {
+      "policy_name": "learned_predicted_route_p1_top4_zscore_k100_w1p0",
+      "query_source": "learned",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 100
+    },
+    {
+      "policy_name": "learned_predicted_route_p1_top4_zscore_k200_w0p0",
+      "query_source": "learned",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 200
+    },
+    {
+      "policy_name": "learned_predicted_route_p1_top4_zscore_k200_w0p5",
+      "query_source": "learned",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 200
+    },
+    {
+      "policy_name": "learned_predicted_route_p1_top4_zscore_k200_w1p0",
+      "query_source": "learned",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 200
+    },
+    {
+      "policy_name": "learned_predicted_route_p1_top4_zscore_k500_w0p0",
+      "query_source": "learned",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 500
+    },
+    {
+      "policy_name": "learned_predicted_route_p1_top4_zscore_k500_w0p5",
+      "query_source": "learned",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 500
+    },
+    {
+      "policy_name": "learned_predicted_route_p1_top4_zscore_k500_w1p0",
+      "query_source": "learned",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 500
+    },
+    {
+      "policy_name": "learned_domain_prior_p1_top4_zscore_k50_w0p0",
+      "query_source": "learned",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 50
+    },
+    {
+      "policy_name": "learned_domain_prior_p1_top4_zscore_k50_w0p5",
+      "query_source": "learned",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 50
+    },
+    {
+      "policy_name": "learned_domain_prior_p1_top4_zscore_k50_w1p0",
+      "query_source": "learned",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 50
+    },
+    {
+      "policy_name": "learned_domain_prior_p1_top4_zscore_k100_w0p0",
+      "query_source": "learned",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 100
+    },
+    {
+      "policy_name": "learned_domain_prior_p1_top4_zscore_k100_w0p5",
+      "query_source": "learned",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 100
+    },
+    {
+      "policy_name": "learned_domain_prior_p1_top4_zscore_k100_w1p0",
+      "query_source": "learned",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 100
+    },
+    {
+      "policy_name": "learned_domain_prior_p1_top4_zscore_k200_w0p0",
+      "query_source": "learned",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 200
+    },
+    {
+      "policy_name": "learned_domain_prior_p1_top4_zscore_k200_w0p5",
+      "query_source": "learned",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 200
+    },
+    {
+      "policy_name": "learned_domain_prior_p1_top4_zscore_k200_w1p0",
+      "query_source": "learned",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 200
+    },
+    {
+      "policy_name": "learned_domain_prior_p1_top4_zscore_k500_w0p0",
+      "query_source": "learned",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 500
+    },
+    {
+      "policy_name": "learned_domain_prior_p1_top4_zscore_k500_w0p5",
+      "query_source": "learned",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 500
+    },
+    {
+      "policy_name": "learned_domain_prior_p1_top4_zscore_k500_w1p0",
+      "query_source": "learned",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 500
+    },
+    {
+      "policy_name": "residual_predicted_route_p1_top4_zscore_k50_w0p0",
+      "query_source": "residual",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 50
+    },
+    {
+      "policy_name": "residual_predicted_route_p1_top4_zscore_k50_w0p5",
+      "query_source": "residual",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 50
+    },
+    {
+      "policy_name": "residual_predicted_route_p1_top4_zscore_k50_w1p0",
+      "query_source": "residual",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 50
+    },
+    {
+      "policy_name": "residual_predicted_route_p1_top4_zscore_k100_w0p0",
+      "query_source": "residual",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 100
+    },
+    {
+      "policy_name": "residual_predicted_route_p1_top4_zscore_k100_w0p5",
+      "query_source": "residual",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 100
+    },
+    {
+      "policy_name": "residual_predicted_route_p1_top4_zscore_k100_w1p0",
+      "query_source": "residual",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 100
+    },
+    {
+      "policy_name": "residual_predicted_route_p1_top4_zscore_k200_w0p0",
+      "query_source": "residual",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 200
+    },
+    {
+      "policy_name": "residual_predicted_route_p1_top4_zscore_k200_w0p5",
+      "query_source": "residual",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 200
+    },
+    {
+      "policy_name": "residual_predicted_route_p1_top4_zscore_k200_w1p0",
+      "query_source": "residual",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 200
+    },
+    {
+      "policy_name": "residual_predicted_route_p1_top4_zscore_k500_w0p0",
+      "query_source": "residual",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 500
+    },
+    {
+      "policy_name": "residual_predicted_route_p1_top4_zscore_k500_w0p5",
+      "query_source": "residual",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 500
+    },
+    {
+      "policy_name": "residual_predicted_route_p1_top4_zscore_k500_w1p0",
+      "query_source": "residual",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 500
+    },
+    {
+      "policy_name": "residual_domain_prior_p1_top4_zscore_k50_w0p0",
+      "query_source": "residual",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 50
+    },
+    {
+      "policy_name": "residual_domain_prior_p1_top4_zscore_k50_w0p5",
+      "query_source": "residual",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 50
+    },
+    {
+      "policy_name": "residual_domain_prior_p1_top4_zscore_k50_w1p0",
+      "query_source": "residual",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 50
+    },
+    {
+      "policy_name": "residual_domain_prior_p1_top4_zscore_k100_w0p0",
+      "query_source": "residual",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 100
+    },
+    {
+      "policy_name": "residual_domain_prior_p1_top4_zscore_k100_w0p5",
+      "query_source": "residual",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 100
+    },
+    {
+      "policy_name": "residual_domain_prior_p1_top4_zscore_k100_w1p0",
+      "query_source": "residual",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 100
+    },
+    {
+      "policy_name": "residual_domain_prior_p1_top4_zscore_k200_w0p0",
+      "query_source": "residual",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 200
+    },
+    {
+      "policy_name": "residual_domain_prior_p1_top4_zscore_k200_w0p5",
+      "query_source": "residual",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 200
+    },
+    {
+      "policy_name": "residual_domain_prior_p1_top4_zscore_k200_w1p0",
+      "query_source": "residual",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 200
+    },
+    {
+      "policy_name": "residual_domain_prior_p1_top4_zscore_k500_w0p0",
+      "query_source": "residual",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 500
+    },
+    {
+      "policy_name": "residual_domain_prior_p1_top4_zscore_k500_w0p5",
+      "query_source": "residual",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 500
+    },
+    {
+      "policy_name": "residual_domain_prior_p1_top4_zscore_k500_w1p0",
+      "query_source": "residual",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 500
+    },
+    {
+      "policy_name": "mean_predicted_route_p1_top4_zscore_k50_w0p0",
+      "query_source": "mean",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 50
+    },
+    {
+      "policy_name": "mean_predicted_route_p1_top4_zscore_k50_w0p5",
+      "query_source": "mean",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 50
+    },
+    {
+      "policy_name": "mean_predicted_route_p1_top4_zscore_k50_w1p0",
+      "query_source": "mean",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 50
+    },
+    {
+      "policy_name": "mean_predicted_route_p1_top4_zscore_k100_w0p0",
+      "query_source": "mean",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 100
+    },
+    {
+      "policy_name": "mean_predicted_route_p1_top4_zscore_k100_w0p5",
+      "query_source": "mean",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 100
+    },
+    {
+      "policy_name": "mean_predicted_route_p1_top4_zscore_k100_w1p0",
+      "query_source": "mean",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 100
+    },
+    {
+      "policy_name": "mean_predicted_route_p1_top4_zscore_k200_w0p0",
+      "query_source": "mean",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 200
+    },
+    {
+      "policy_name": "mean_predicted_route_p1_top4_zscore_k200_w0p5",
+      "query_source": "mean",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 200
+    },
+    {
+      "policy_name": "mean_predicted_route_p1_top4_zscore_k200_w1p0",
+      "query_source": "mean",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 200
+    },
+    {
+      "policy_name": "mean_predicted_route_p1_top4_zscore_k500_w0p0",
+      "query_source": "mean",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 500
+    },
+    {
+      "policy_name": "mean_predicted_route_p1_top4_zscore_k500_w0p5",
+      "query_source": "mean",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 500
+    },
+    {
+      "policy_name": "mean_predicted_route_p1_top4_zscore_k500_w1p0",
+      "query_source": "mean",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 500
+    },
+    {
+      "policy_name": "mean_domain_prior_p1_top4_zscore_k50_w0p0",
+      "query_source": "mean",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 50
+    },
+    {
+      "policy_name": "mean_domain_prior_p1_top4_zscore_k50_w0p5",
+      "query_source": "mean",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 50
+    },
+    {
+      "policy_name": "mean_domain_prior_p1_top4_zscore_k50_w1p0",
+      "query_source": "mean",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 50
+    },
+    {
+      "policy_name": "mean_domain_prior_p1_top4_zscore_k100_w0p0",
+      "query_source": "mean",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 100
+    },
+    {
+      "policy_name": "mean_domain_prior_p1_top4_zscore_k100_w0p5",
+      "query_source": "mean",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 100
+    },
+    {
+      "policy_name": "mean_domain_prior_p1_top4_zscore_k100_w1p0",
+      "query_source": "mean",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 100
+    },
+    {
+      "policy_name": "mean_domain_prior_p1_top4_zscore_k200_w0p0",
+      "query_source": "mean",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 200
+    },
+    {
+      "policy_name": "mean_domain_prior_p1_top4_zscore_k200_w0p5",
+      "query_source": "mean",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 200
+    },
+    {
+      "policy_name": "mean_domain_prior_p1_top4_zscore_k200_w1p0",
+      "query_source": "mean",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 200
+    },
+    {
+      "policy_name": "mean_domain_prior_p1_top4_zscore_k500_w0p0",
+      "query_source": "mean",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 500
+    },
+    {
+      "policy_name": "mean_domain_prior_p1_top4_zscore_k500_w0p5",
+      "query_source": "mean",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 500
+    },
+    {
+      "policy_name": "mean_domain_prior_p1_top4_zscore_k500_w1p0",
+      "query_source": "mean",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 500
+    },
+    {
+      "policy_name": "domain_adaptive_predicted_route_p1_top4_zscore_k50_w0p0",
+      "query_source": "domain_adaptive",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 50
+    },
+    {
+      "policy_name": "domain_adaptive_predicted_route_p1_top4_zscore_k50_w0p5",
+      "query_source": "domain_adaptive",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 50
+    },
+    {
+      "policy_name": "domain_adaptive_predicted_route_p1_top4_zscore_k50_w1p0",
+      "query_source": "domain_adaptive",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 50
+    },
+    {
+      "policy_name": "domain_adaptive_predicted_route_p1_top4_zscore_k100_w0p0",
+      "query_source": "domain_adaptive",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 100
+    },
+    {
+      "policy_name": "domain_adaptive_predicted_route_p1_top4_zscore_k100_w0p5",
+      "query_source": "domain_adaptive",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 100
+    },
+    {
+      "policy_name": "domain_adaptive_predicted_route_p1_top4_zscore_k100_w1p0",
+      "query_source": "domain_adaptive",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 100
+    },
+    {
+      "policy_name": "domain_adaptive_predicted_route_p1_top4_zscore_k200_w0p0",
+      "query_source": "domain_adaptive",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 200
+    },
+    {
+      "policy_name": "domain_adaptive_predicted_route_p1_top4_zscore_k200_w0p5",
+      "query_source": "domain_adaptive",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 200
+    },
+    {
+      "policy_name": "domain_adaptive_predicted_route_p1_top4_zscore_k200_w1p0",
+      "query_source": "domain_adaptive",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 200
+    },
+    {
+      "policy_name": "domain_adaptive_predicted_route_p1_top4_zscore_k500_w0p0",
+      "query_source": "domain_adaptive",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 500
+    },
+    {
+      "policy_name": "domain_adaptive_predicted_route_p1_top4_zscore_k500_w0p5",
+      "query_source": "domain_adaptive",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 500
+    },
+    {
+      "policy_name": "domain_adaptive_predicted_route_p1_top4_zscore_k500_w1p0",
+      "query_source": "domain_adaptive",
+      "mode": "predicted_route_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 500
+    },
+    {
+      "policy_name": "domain_adaptive_domain_prior_p1_top4_zscore_k50_w0p0",
+      "query_source": "domain_adaptive",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 50
+    },
+    {
+      "policy_name": "domain_adaptive_domain_prior_p1_top4_zscore_k50_w0p5",
+      "query_source": "domain_adaptive",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 50
+    },
+    {
+      "policy_name": "domain_adaptive_domain_prior_p1_top4_zscore_k50_w1p0",
+      "query_source": "domain_adaptive",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 50
+    },
+    {
+      "policy_name": "domain_adaptive_domain_prior_p1_top4_zscore_k100_w0p0",
+      "query_source": "domain_adaptive",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 100
+    },
+    {
+      "policy_name": "domain_adaptive_domain_prior_p1_top4_zscore_k100_w0p5",
+      "query_source": "domain_adaptive",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 100
+    },
+    {
+      "policy_name": "domain_adaptive_domain_prior_p1_top4_zscore_k100_w1p0",
+      "query_source": "domain_adaptive",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 100
+    },
+    {
+      "policy_name": "domain_adaptive_domain_prior_p1_top4_zscore_k200_w0p0",
+      "query_source": "domain_adaptive",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 200
+    },
+    {
+      "policy_name": "domain_adaptive_domain_prior_p1_top4_zscore_k200_w0p5",
+      "query_source": "domain_adaptive",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 200
+    },
+    {
+      "policy_name": "domain_adaptive_domain_prior_p1_top4_zscore_k200_w1p0",
+      "query_source": "domain_adaptive",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 200
+    },
+    {
+      "policy_name": "domain_adaptive_domain_prior_p1_top4_zscore_k500_w0p0",
+      "query_source": "domain_adaptive",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.0,
+      "per_route_topk": 500
+    },
+    {
+      "policy_name": "domain_adaptive_domain_prior_p1_top4_zscore_k500_w0p5",
+      "query_source": "domain_adaptive",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 0.5,
+      "per_route_topk": 500
+    },
+    {
+      "policy_name": "domain_adaptive_domain_prior_p1_top4_zscore_k500_w1p0",
+      "query_source": "domain_adaptive",
+      "mode": "domain_prior_p1_top4_zscore",
+      "route_score_weight": 1.0,
+      "per_route_topk": 500
+    }
+  ],
+  "metadata": {
+    "experiment_name": "h3_candidate_pool_depth_20260608",
+    "description": "Validation-only H3 grid over query source, prefix-1 source, per-route candidate depth, and route score weight after H2 showed route-hit pool misses dominate.",
+    "claim_boundary": "Validation-only diagnostic. Do not use as a consumed-blind claim; lock on validation before any fresh blind confirmation."
+  }
+}

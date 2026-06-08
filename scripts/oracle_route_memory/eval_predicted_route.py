@@ -321,6 +321,8 @@ def build_fusion_retrieval_row(
             match_rank = rank
             break
     candidate_pool = {item_id for row in member_rows for item_id in row["ranked_ids"][:max_k]}
+    route_hit_count = sum(1 for row in member_rows if bool(row.get("route_hit")))
+    candidate_pool_hit_count = sum(1 for row in member_rows if bool(row.get("candidate_pool_hit")))
     return {
         "query_source": "fusion",
         "effective_query_source": "fusion",
@@ -335,6 +337,9 @@ def build_fusion_retrieval_row(
         "match_rank": match_rank,
         "latency_ms": sum(float(row.get("latency_ms", 0.0)) for row in member_rows),
         "fallback_used": any(bool(row.get("fallback_used")) for row in member_rows),
+        "route_hit": route_hit_count > 0,
+        "member_route_hit_count": route_hit_count,
+        "member_candidate_pool_hit_count": candidate_pool_hit_count,
         "candidate_pool_size": len(candidate_pool),
         "candidate_pool_hit": target_item_id in candidate_pool,
         "num_route_candidates": sum(int(row.get("num_route_candidates", 0)) for row in member_rows),
@@ -842,11 +847,32 @@ def rerank_with_routes(
         merge_strategy=merge_strategy,
         route_score_weight=route_score_weight,
     )
+    candidate_pool_hit = bool(target_item_id is not None and target_item_id in candidate_pool)
+    candidate_pool_match_rank = None
+    if candidate_pool_hit:
+        candidate_pool_match_rank = next(
+            (rank for rank, item_id in enumerate(ranked_ids, start=1) if item_id == target_item_id),
+            None,
+        )
+        if candidate_pool_match_rank is None:
+            full_ranked_ids = merge_candidate_rows(
+                per_route_candidates=per_route_candidates,
+                route_log_probs=route_log_probs,
+                max_k=len(candidate_pool),
+                merge_strategy=merge_strategy,
+                route_score_weight=route_score_weight,
+            )
+            candidate_pool_match_rank = next(
+                (rank for rank, item_id in enumerate(full_ranked_ids, start=1) if item_id == target_item_id),
+                None,
+            )
 
     latency_ms = (time.perf_counter() - start_search) * 1000.0
     diagnostics = {
         "candidate_pool_size": len(candidate_pool),
-        "candidate_pool_hit": bool(target_item_id is not None and target_item_id in candidate_pool),
+        "candidate_pool_hit": candidate_pool_hit,
+        "candidate_pool_match_rank": candidate_pool_match_rank,
+        "candidate_pool_rank_cutoff": len(candidate_pool),
         "num_route_candidates": len(route_candidates),
         "merge_strategy": merge_strategy,
         "per_route_topk": search_topk,

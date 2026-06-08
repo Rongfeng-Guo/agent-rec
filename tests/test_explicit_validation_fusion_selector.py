@@ -3,6 +3,8 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 
 def load_module():
     repo_root = Path(__file__).resolve().parents[1]
@@ -76,3 +78,81 @@ def test_normalize_explicit_policy_payload_hash_changes_with_candidates() -> Non
     second = module._normalize_explicit_policy_payload(changed, "memory", "memory")
 
     assert first["config_hash"] != second["config_hash"]
+
+
+def test_required_retrieval_keys_keep_policy_controls_distinct() -> None:
+    module = load_module()
+    policies = [
+        {
+            "policy_name": "p1_k50",
+            "query_source": "learned",
+            "mode": "predicted_route_p1_top4_zscore",
+            "route_score_weight": 0.0,
+            "per_route_topk": 50,
+        },
+        {
+            "policy_name": "p1_k200",
+            "query_source": "learned",
+            "mode": "predicted_route_p1_top4_zscore",
+            "route_score_weight": 0.0,
+            "per_route_topk": 200,
+        },
+        {
+            "policy_name": "fusion_w1",
+            "query_source": "fusion",
+            "mode": "fusion_lr",
+            "route_score_weight": 1.0,
+            "per_route_topk": 50,
+            "fusion_specs": [
+                {
+                    "name": "lr",
+                    "members": [
+                        ("learned", "predicted_route_p1_top4_zscore"),
+                        ("residual", "predicted_route_p1_top4_zscore"),
+                    ],
+                }
+            ],
+        },
+    ]
+
+    keys = module.required_retrieval_keys(policies)
+
+    assert ("learned", "predicted_route_p1_top4_zscore", 0.0, 50) in keys
+    assert ("learned", "predicted_route_p1_top4_zscore", 0.0, 200) in keys
+    assert ("learned", "predicted_route_p1_top4_zscore", 1.0, 50) in keys
+    assert ("residual", "predicted_route_p1_top4_zscore", 1.0, 50) in keys
+    assert len(keys) == 4
+
+
+def test_output_dir_guard_refuses_non_empty_directory(tmp_path) -> None:
+    module = load_module()
+    output_dir = tmp_path / "selector"
+    output_dir.mkdir()
+    (output_dir / "old.txt").write_text("keep", encoding="utf-8")
+
+    with pytest.raises(FileExistsError, match="non-empty output directory"):
+        module.ensure_empty_output_dir(output_dir)
+
+    assert (output_dir / "old.txt").read_text(encoding="utf-8") == "keep"
+    assert "validation-only" in module.NEXT_TARGET
+
+
+def test_resolve_output_dir_uses_repo_root_for_relative_paths(tmp_path) -> None:
+    module = load_module()
+    repo_root = tmp_path / "repo"
+    absolute = tmp_path / "absolute"
+
+    assert module.resolve_output_dir("outputs/selector", repo_root) == repo_root / "outputs" / "selector"
+    assert module.resolve_output_dir(absolute, repo_root) == absolute
+    assert module.resolve_output_dir("outputs/selector") == Path("outputs/selector")
+
+
+def test_resolve_repo_path_uses_repo_root_for_relative_inputs(tmp_path) -> None:
+    module = load_module()
+    repo_root = tmp_path / "repo"
+    absolute = tmp_path / "policy.json"
+
+    assert module.resolve_repo_path("configs/policy.json", repo_root) == repo_root / "configs" / "policy.json"
+    assert module.resolve_repo_path(absolute, repo_root) == absolute
+    assert module.resolve_repo_path("configs/policy.json") == Path("configs/policy.json")
+    assert module.resolve_repo_path(None, repo_root) is None

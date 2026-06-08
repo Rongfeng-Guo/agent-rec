@@ -1,0 +1,112 @@
+{
+  "name": "h5_d_fresh_confirmation_handoff_index",
+  "updated_at": "2026-06-08",
+  "locked_policy_manifest": "experiments/h5-candidate-level-source-reranker/locked_policy_manifest.json",
+  "current_handoff": {
+    "version": "v16",
+    "prep_bundle_dir": "outputs/oracle_route_memory/h5_fresh_confirmation_prep_bundle_20260608_v16",
+    "prep_bundle_manifest": "outputs/oracle_route_memory/h5_fresh_confirmation_prep_bundle_20260608_v16/bundle_manifest.json",
+    "prep_bundle_audit_dir": "outputs/oracle_route_memory/h5_fresh_confirmation_prep_bundle_20260608_v16_audit",
+    "prep_bundle_audit_json": "outputs/oracle_route_memory/h5_fresh_confirmation_prep_bundle_20260608_v16_audit/bundle_audit.json",
+    "fresh_readiness_dir": "outputs/oracle_route_memory/h5_fresh_readiness_20260608_v16",
+    "fresh_readiness_json": "outputs/oracle_route_memory/h5_fresh_readiness_20260608_v16/fresh_readiness.json",
+    "report_renderer": "scripts/oracle_route_memory/render_h5_fresh_confirmation_report.py",
+    "fresh_report_output_pattern": "outputs/oracle_route_memory/h5_fresh_confirmation_report_YYYYMMDD"
+  },
+  "bundle_required_artifacts": [
+    "experiments/h5-candidate-level-source-reranker/locked_policy_manifest.json",
+    "experiments/h5-candidate-level-source-reranker/README.md",
+    "experiments/h5-candidate-level-source-reranker/handoff_index.json",
+    "experiments/h5-candidate-level-source-reranker/repro_commands.md",
+    "experiments/h5-candidate-level-source-reranker/validation_comparison.md",
+    "experiments/h5-candidate-level-source-reranker/fresh_confirmation_checklist.md",
+    "experiments/h5-candidate-level-source-reranker/fresh_confirmation_bundle.md",
+    "to_human/h5_paper_facing_validation_summary_20260608.md",
+    "to_human/h5_fresh_confirmation_handoff_summary_20260608.md",
+    "research-state.yaml",
+    "research-log.md"
+  ],
+  "doc_checks": [
+    {
+      "path": "experiments/h5-candidate-level-source-reranker/README.md",
+      "required_mentions": [
+        "outputs/oracle_route_memory/h5_fresh_confirmation_prep_bundle_20260608_v16",
+        "outputs/oracle_route_memory/h5_fresh_confirmation_prep_bundle_20260608_v16_audit",
+        "outputs/oracle_route_memory/h5_fresh_readiness_20260608_v16",
+        "handoff_index.json",
+        "scripts/oracle_route_memory/validate_h5_handoff_index.py",
+        "scripts/oracle_route_memory/render_h5_fresh_confirmation_report.py"
+      ]
+    },
+    {
+      "path": "experiments/h5-candidate-level-source-reranker/protocol.md",
+      "required_mentions": [
+        "outputs/oracle_route_memory/h5_fresh_confirmation_prep_bundle_20260608_v16",
+        "outputs/oracle_route_memory/h5_fresh_confirmation_prep_bundle_20260608_v16_audit",
+        "outputs/oracle_route_memory/h5_fresh_readiness_20260608_v16",
+        "h5_fresh_candidate_level_source_features_k500_YYYYMMDD",
+        "scripts/oracle_route_memory/validate_h5_handoff_index.py",
+        "scripts/oracle_route_memory/render_h5_fresh_confirmation_report.py"
+      ]
+    },
+    {
+      "path": "experiments/h5-candidate-level-source-reranker/repro_commands.md",
+      "required_mentions": [
+        "outputs/oracle_route_memory/h5_fresh_confirmation_prep_bundle_20260608_v16",
+        "outputs/oracle_route_memory/h5_fresh_confirmation_prep_bundle_20260608_v16_audit",
+        "outputs/oracle_route_memory/h5_fresh_readiness_20260608_v16",
+        "scripts/oracle_route_memory/validate_h5_handoff_index.py",
+        "scripts/oracle_route_memory/render_h5_fresh_confirmation_report.py"
+      ]
+    },
+    {
+      "path": "experiments/h5-candidate-level-source-reranker/fresh_confirmation_checklist.md",
+      "required_mentions": [
+        "outputs/oracle_route_memory/h5_fresh_confirmation_prep_bundle_20260608_v16",
+        "outputs/oracle_route_memory/h5_fresh_confirmation_prep_bundle_20260608_v16_audit",
+        "outputs/oracle_route_memory/h5_fresh_readiness_20260608_v16",
+        "h5_fresh_candidate_level_source_features_k500_YYYYMMDD",
+        "scripts/oracle_route_memory/render_h5_fresh_confirmation_report.py"
+      ]
+    },
+    {
+      "path": "experiments/h5-candidate-level-source-reranker/fresh_confirmation_bundle.md",
+      "required_mentions": [
+        "outputs/oracle_route_memory/h5_fresh_confirmation_prep_bundle_20260608_v16",
+        "outputs/oracle_route_memory/h5_fresh_confirmation_prep_bundle_20260608_v16_audit",
+        "outputs/oracle_route_memory/h5_fresh_readiness_20260608_v16",
+        "handoff_index.json",
+        "scripts/oracle_route_memory/validate_h5_handoff_index.py",
+        "scripts/oracle_route_memory/render_h5_fresh_confirmation_report.py"
+      ]
+    },
+    {
+      "path": "to_human/h5_fresh_confirmation_handoff_summary_20260608.md",
+      "required_mentions": [
+        "outputs/oracle_route_memory/h5_fresh_confirmation_prep_bundle_20260608_v16",
+        "outputs/oracle_route_memory/h5_fresh_confirmation_prep_bundle_20260608_v16_audit",
+        "outputs/oracle_route_memory/h5_fresh_readiness_20260608_v16",
+        "scripts/oracle_route_memory/validate_h5_handoff_index.py",
+        "scripts/oracle_route_memory/render_h5_fresh_confirmation_report.py"
+      ]
+    },
+    {
+      "path": "research-state.yaml",
+      "required_mentions": [
+        "outputs/oracle_route_memory/h5_fresh_confirmation_prep_bundle_20260608_v16",
+        "outputs/oracle_route_memory/h5_fresh_confirmation_prep_bundle_20260608_v16_audit",
+        "scripts/oracle_route_memory/validate_h5_handoff_index.py",
+        "scripts/oracle_route_memory/render_h5_fresh_confirmation_report.py"
+      ]
+    },
+    {
+      "path": "research-log.md",
+      "required_mentions": [
+        "outputs/oracle_route_memory/h5_fresh_confirmation_prep_bundle_20260608_v16",
+        "scripts/oracle_route_memory/validate_h5_handoff_index.py",
+        "scripts/oracle_route_memory/render_h5_fresh_confirmation_report.py"
+      ]
+    }
+  ],
+  "next_target": "Keep this handoff index validator at status=ok after every H5-D handoff doc or bundle version change, then use the locked registration, scoring, domain-routing, and report-rendering flow for any future fresh/unconsumed split."
+}
